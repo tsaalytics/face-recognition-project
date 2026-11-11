@@ -1,7 +1,7 @@
 # FaceTrack AI
 
 Sistem absensi karyawan berbasis Laravel 13, PHP 8.3, Blade, Tailwind CSS 4,
-Vite dan MySQL. Implementasi saat ini: **Phase 3 - HR Module**.
+Vite dan MySQL. Implementasi saat ini: **Phase 4 - Employee Module**.
 
 ## Yang tersedia
 - Login/logout session Laravel, CSRF, validasi dan rate limit login.
@@ -17,8 +17,11 @@ perubahan role, direktori karyawan dan monitoring absensi dengan filter serta pa
 Phase 3 menambahkan dashboard HR, CRUD profil, monitoring/export CSV, halaman
 enrollment nonaktif, detail bukti privat dan keputusan koreksi/izin dengan audit.
 
-Belum tersedia: modul Employee untuk pengajuan mandiri, kamera/GPS, upload bukti,
-integrasi AI dan pengaturan shift lintas tengah malam.
+Phase 4 menambahkan absensi pribadi, form koreksi dengan kamera/geolocation,
+form izin dan upload privat, riwayat keputusan, serta akses bukti milik sendiri.
+
+Belum tersedia: integrasi AI, shift lintas tengah malam, saldo cuti, kalender kerja,
+pembatalan keputusan dan QA visual menyeluruh (Phase 5).
 Tidak ada data pribadi/biometrik nyata. Foto demo hanyalah berkas teks berlabel sintetis;
 koordinat 0,0 pada fixture bukan lokasi perangkat dan tidak boleh dipakai sebagai bukti.
 
@@ -75,7 +78,7 @@ Enam profil, tiga divisi, enam absensi bertanda seed_fixture,
 satu koreksi pending dan satu cuti pending disediakan untuk pengujian berikutnya.
 Tidak ada absensi yang mengaku bersumber face recognition.
 Berkas bukti privat berada di storage/app/private; tidak perlu storage:link.
-Endpoint bukti privat pada Phase 3 hanya tersedia bagi HR melalui detail permohonan.
+Bukti privat tersedia bagi HR melalui rute HR dan pemilik melalui rute Employee; Admin tidak memiliki endpoint bukti.
 
 ## Pengujian
 ```powershell
@@ -86,7 +89,7 @@ npm.cmd run build
 
 PHPUnit memakai SQLite in-memory, cache/session array, dan tidak menghapus data MySQL.
 Lihat [rancangan dan aturan fase berikutnya](docs/architecture.md).
-Laporan Phase 1: docs/verification.md. Phase 2: docs/phase-2.md. Phase 3: docs/phase-3.md.
+Laporan Phase 1: docs/verification.md. Phase 2: docs/phase-2.md. Phase 3: docs/phase-3.md. Phase 4: docs/phase-4.md.
 
 
 ## Modul Admin (Phase 2)
@@ -158,6 +161,67 @@ Login hr@facetrack.test / DemoFaceTrack!2026, lalu buka /hr.
   Setelah HR menyetujui fixture ini, sumber hr_approved berarti keputusan HR
   atas contoh sintetis, bukan hasil AI.
 
-Form pengajuan Employee dan pengambilan kamera/lokasi masih Phase 4.
+Form pengajuan Employee dan pengambilan kamera/lokasi kini tersedia pada Phase 4.
 Jangan menjalankan db:seed setelah menilai demo: seeder Phase 1 dirancang untuk
 data contoh awal dan dapat mengembalikan status fixture.
+
+
+## Modul Employee (Phase 4)
+Tidak ada migrasi baru. Jalankan npm.cmd run build, php artisan optimize:clear,
+lalu php artisan serve. Jangan seed ulang.
+Login employee@facetrack.test / DemoFaceTrack!2026 dan buka /employee.
+
+- /employee/attendance: riwayat sendiri, jam masuk/pulang/status/sumber,
+  filter tanggal dan pagination. Hari tanpa record tidak disimpulkan absent.
+- /employee/corrections: status/history sendiri; tombol pengajuan hanya muncul
+  bila profil terhubung dan aktif.
+- Form koreksi: Check In/Out, tanggal dan waktu yang dimohonkan (Asia/Jakarta),
+  alasan, consent, foto dari getUserMedia/canvas, lokasi dari Geolocation API.
+  Tidak ada file picker foto atau fallback koordinat otomatis.
+- Centang consent, buka kamera, ambil foto, lalu ambil lokasi. Memulai ulang kamera
+  menghapus bukti/lokasi sebelumnya. Kamera berhenti setelah foto diambil,
+  saat consent dicabut, atau halaman ditinggalkan.
+- Jika izin ditolak/tidak didukung, tampil penjelasan dan alternatif melalui HR;
+  data tidak dikirim tanpa foto/lokasi/consent.
+- Foto JPEG/PNG/WebP maksimal 5 MB dan 4096x4096, timestamp perangkat maksimum
+  15 menit lalu dengan toleransi jam maju 5 menit. Waktu harus benar;
+  foto/GPS/timestamp tidak membuktikan identitas dan dapat dimanipulasi.
+  Server tidak mengklaim dapat memverifikasi bahwa upload benar-benar live.
+- Form mengirim multipart dengan CSRF melalui fetch; validasi error tidak
+  mengunggah ulang otomatis. Jika jaringan tidak jelas, periksa daftar sebelum retry.
+- Request pending duplikat pada tanggal/session/type yang sama ditolak.
+  Belum ada pembatalan/edit permohonan; hubungi HR jika ada kesalahan.
+- /employee/leaves: pengajuan izin/sakit/cuti, rentang hari, alasan,
+  attachment opsional PDF/JPEG/PNG/WebP maksimal 5 MB.
+- ID karyawan, status pending, is_demo=false, sesi regular, submitted_at dan
+  path berkas ditetapkan server. Request tidak membuat attendance sebelum approval HR.
+- Detail sendiri menampilkan koordinat/link peta, bukti privat dan catatan HR.
+  Employee tidak dapat membuka request/berkas karyawan lain atau mengambil keputusan.
+- Profil belum terhubung: history kosong dan pengajuan ditolak.
+  Profil nonaktif: history sendiri tetap tersedia, pengajuan baru ditolak.
+- Berkas disimpan di storage/app/private/corrections atau leaves.
+  Gagal menyimpan request membersihkan berkas yang baru dibuat.
+- Submission dibatasi 10 per menit dan menggunakan lock profil untuk pemeriksaan
+  pending/overlap, berbagi lock yang digunakan approval HR.
+
+### Menjalankan kamera/lokasi
+Gunakan http://127.0.0.1:8000 atau http://localhost:8000 di komputer yang menjalankan
+aplikasi. Untuk telepon/perangkat lain, gunakan hosting HTTPS dengan sertifikat valid;
+alamat HTTP LAN biasa umumnya tidak menyediakan secure context untuk sensor.
+Jangan menonaktifkan keamanan browser. Izinkan kamera/lokasi hanya bila bersedia.
+
+Batas aplikasi 5 MB. Konfigurasi PHP perlu upload_max_filesize minimal 5M dan
+post_max_size lebih besar, misalnya 8M. Environment lokal saat diperiksa sudah
+mendukung upload di atas batas aplikasi; php.ini tidak diubah.
+
+### Tes tambahan
+```powershell
+php artisan test
+npm.cmd run test:js
+npm.cmd run build
+```
+
+Tes JavaScript memakai mock DOM/API kamera/lokasi, bukan perangkat fisik.
+Uji manual yang belum dilakukan: grant/deny kamera/GPS nyata, browser mobile,
+revoke permission pada pengaturan browser, foto/perangkat nyata dan QA visual.
+Tidak ada AI yang dijalankan.

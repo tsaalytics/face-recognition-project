@@ -58,6 +58,6 @@ class EmployeeController extends Controller
     {
         $service->save($request->user(), $request->validated(), $employee);
 
-        return redirect()->route('hr.employees.index')->with('success','Profil karyawan berhasil diperbarui.');
+        return redirect()->route('hr.employees.index')->with('success', 'Profil karyawan berhasil diperbarui.');
     }
 }

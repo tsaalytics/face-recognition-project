@@ -1,0 +1,10 @@
+<x-layout :title="$kind==='corrections' ? 'Koreksi Saya' : 'Izin Saya'">
+<div class="flex flex-wrap justify-between gap-4"><div><h1 class="text-3xl font-bold text-purple">{{ $kind==='corrections' ? 'Permohonan koreksi saya' : 'Pengajuan izin saya' }}</h1><p class="mt-2 text-sm text-slate-500">Pantau status dan riwayat keputusan HR.</p></div>
+@if($employee?->is_active)<a class="button" href="{{ route('employee.'.$kind.'.create') }}">+ Ajukan {{ $kind==='corrections' ? 'koreksi' : 'izin' }}</a>@endif</div>
+@if(!$employee?->is_active)<p class="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Pengajuan belum tersedia. Hubungi HR untuk menghubungkan atau mengaktifkan profil Anda.</p>@endif
+<form method="GET" class="filter-panel"><div><label class="filter-label" for="status">Status</label><select class="field" id="status" name="status"><option value="">Semua status</option>@foreach(['pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected'] as $value=>$label)<option value="{{ $value }}" @selected(request('status')===$value)>{{ $label }}</option>@endforeach</select></div><button class="button">Terapkan</button><a class="reset-link" href="{{ route('employee.'.$kind.'.index') }}">Reset</a></form>
+<div class="table-panel"><table class="data-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Diajukan</th><th>Status</th><th>Detail</th></tr></thead><tbody>
+@forelse($requests as $item)<tr><td>{{ $kind==='corrections' ? $item->attendance_date->format('d M Y') : $item->start_date->format('d M Y').' - '.$item->end_date->format('d M Y') }}</td><td>{{ ['check_in'=>'Check In','check_out'=>'Check Out','permission'=>'Izin','sick'=>'Sakit','annual'=>'Cuti'][$item->type] ?? $item->type }}</td><td>{{ $item->submitted_at->format('d M Y H:i') }}</td><td><x-status :value="$item->status"/></td><td><a class="reset-link" href="{{ route('employee.'.$kind.'.show',$item) }}">Lihat detail</a></td></tr>
+@empty<tr><td colspan="5" class="empty-state">Belum ada permohonan yang cocok.</td></tr>@endforelse
+</tbody></table></div><div class="mt-5">{{ $requests->links() }}</div>
+</x-layout>

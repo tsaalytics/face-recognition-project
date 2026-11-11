@@ -8,8 +8,8 @@ use App\Http\Requests\Hr\DecisionRequest;
 use App\Models\AttendanceCorrectionRequest;
 use App\Models\LeaveRequest;
 use App\Services\ApprovalService;
+use App\Services\PrivateEvidenceService;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 
 class ApprovalController extends Controller
 {
@@ -68,29 +68,13 @@ class ApprovalController extends Controller
         return redirect()->route('hr.leaves.show', $leave)->with('success', 'Keputusan izin berhasil dicatat.');
     }
 
-    private function file($request, ?string $path, bool $image)
-    {
-        Gate::authorize('view', $request);
-        abort_unless($path && preg_match('#^(corrections|leaves|demo)/[a-zA-Z0-9/_\-.]+$#', $path) && ! str_contains($path, '..'), 404);
-        $disk = Storage::disk('local');
-        abort_unless($disk->exists($path), 404);
-        $mime = $disk->mimeType($path);
-        $allowed = $image ? ['image/jpeg', 'image/png', 'image/webp'] : ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-        if ($request instanceof AttendanceCorrectionRequest && $request->is_demo) {
-            $allowed[] = 'text/plain';
-        }
-        abort_unless(in_array($mime, $allowed, true), 404);
-
-        return $disk->response($path, 'evidence.'.pathinfo($path, PATHINFO_EXTENSION), ['Content-Type' => $mime, 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'], $image && $mime !== 'text/plain' ? 'inline' : 'attachment');
-    }
-
     public function evidence(AttendanceCorrectionRequest $correction)
     {
-        return $this->file($correction,$correction->evidence_path,true);
+        return app(PrivateEvidenceService::class)->response($correction, $correction->evidence_path, true);
     }
 
     public function attachment(LeaveRequest $leave)
     {
-        return $this->file($leave,$leave->attachment_path,false);
+        return app(PrivateEvidenceService::class)->response($leave, $leave->attachment_path, false);
     }
 }

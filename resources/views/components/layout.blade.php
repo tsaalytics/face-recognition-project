@@ -19,7 +19,7 @@ $navigation = auth()->user()->role === \App\Enums\Role::Admin
  ? ['admin.home'=>'Dashboard','admin.users.index'=>'Akun pengguna','admin.employees.index'=>'Karyawan','admin.attendance.index'=>'Riwayat absensi']
  : (auth()->user()->role === \App\Enums\Role::Hr
  ? ['hr.home'=>'Dashboard','hr.employees.index'=>'Karyawan','hr.attendance.index'=>'Riwayat absensi','hr.enrollment'=>'Face enrollment','hr.corrections.index'=>'Approval koreksi','hr.leaves.index'=>'Pengajuan izin']
- : [auth()->user()->role->value.'.home'=>'Beranda']);
+ : ['employee.home'=>'Beranda','employee.attendance.index'=>'Absensi saya','employee.corrections.index'=>'Koreksi saya','employee.leaves.index'=>'Izin saya']);
 @endphp
 <nav aria-label="Navigasi utama" class="mt-3 space-y-2">
 @foreach($navigation as $route=>$label)
@@ -27,7 +27,7 @@ $navigation = auth()->user()->role === \App\Enums\Role::Admin
 <a href="{{ route($route) }}" @if($active) aria-current="page" @endif @class(['block rounded-xl px-4 py-3 text-sm font-medium','bg-magenta'=>$active,'hover:bg-white/10'=>!$active])>{{ $label }}</a>
 @endforeach
 </nav>
-<p class="mt-6 text-sm text-purple-200">Phase 3 / HR</p>
+<p class="mt-6 text-sm text-purple-200">Portal kehadiran</p>
 @else
 <p class="text-sm leading-6 text-purple-100">Fondasi pengelolaan kehadiran yang tertata, dengan akses sesuai peran.</p>
 @endauth

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\MonitoringController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\Employee\PortalController;
 use App\Http\Controllers\Hr\ApprovalController;
 use App\Http\Controllers\Hr\EmployeeController;
 use Illuminate\Support\Facades\Route;
@@ -14,9 +15,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/', fn () => redirect()->route(auth()->user()->role->value.'.home'))->name('home');
     Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
-    foreach (['employee'] as $role) {
-        Route::view('/'.$role, 'foundation', ['role' => $role])->middleware('role:'.$role)->name($role.'.home');
-    }
+
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
@@ -40,4 +39,19 @@ Route::prefix('hr')->name('hr.')->middleware(['auth', 'role:hr'])->group(functio
     Route::get('/leaves/{leave}', [ApprovalController::class, 'leave'])->name('leaves.show');
     Route::post('/leaves/{leave}/decision', [ApprovalController::class, 'decideLeave'])->name('leaves.decision');
     Route::get('/leaves/{leave}/attachment', [ApprovalController::class, 'attachment'])->name('leaves.attachment');
+});
+
+Route::prefix('employee')->name('employee.')->middleware(['auth', 'role:employee'])->group(function () {
+    Route::get('/', [PortalController::class, 'home'])->name('home');
+    Route::get('/attendance', [PortalController::class, 'attendance'])->name('attendance.index');
+    Route::get('/corrections', [PortalController::class, 'corrections'])->name('corrections.index');
+    Route::get('/corrections/create', [PortalController::class, 'createCorrection'])->name('corrections.create');
+    Route::post('/corrections', [PortalController::class, 'storeCorrection'])->middleware('throttle:10,1')->name('corrections.store');
+    Route::get('/corrections/{correction}', [PortalController::class, 'correction'])->name('corrections.show');
+    Route::get('/corrections/{correction}/evidence', [PortalController::class, 'evidence'])->name('corrections.evidence');
+    Route::get('/leaves', [PortalController::class, 'leaves'])->name('leaves.index');
+    Route::get('/leaves/create', [PortalController::class, 'createLeave'])->name('leaves.create');
+    Route::post('/leaves', [PortalController::class, 'storeLeave'])->middleware('throttle:10,1')->name('leaves.store');
+    Route::get('/leaves/{leave}', [PortalController::class, 'leave'])->name('leaves.show');
+    Route::get('/leaves/{leave}/attachment', [PortalController::class, 'attachment'])->name('leaves.attachment');
 });

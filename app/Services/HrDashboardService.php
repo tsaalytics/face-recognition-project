@@ -32,6 +32,6 @@ class HrDashboardService
 
         return ['active' => $active, 'present' => $present, 'late' => $late, 'absent' => max(0, $active - $present), 'divisions' => $divisions, 'trend' => $trend,
             'pendingCorrections' => AttendanceCorrectionRequest::where('status', 'pending')->count(),
-            'pendingLeaves' => LeaveRequest::where('status','pending')->count()];
+            'pendingLeaves' => LeaveRequest::where('status', 'pending')->count()];
     }
 }

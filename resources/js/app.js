@@ -14,3 +14,6 @@ document.querySelectorAll('[data-nav-toggle]').forEach((button) => {
   navigation.classList.toggle('hidden', expanded);
  });
 });
+
+import { setupCorrectionForm } from './correction-form';
+document.querySelectorAll('[data-correction-form]').forEach((form) => setupCorrectionForm(form));

@@ -5,8 +5,10 @@ Phase 1 menyediakan login/logout, akun aktif, RBAC, policies, schema/relasi, dem
 Phase 2 menambahkan dashboard Admin, CRUD akun HR/Employee tanpa hapus permanen,
 serta direktori karyawan dan monitoring attendance baca-saja.
 Phase 3 menyediakan CRUD profil HR, dashboard/tren/divisi, CSV, detail bukti privat,
-serta approval koreksi/izin transaksional. Form pengajuan mandiri Employee belum ada.
-Tidak ada AI, face embedding, kamera, geolocation maupun absensi otomatis.
+serta approval koreksi/izin transaksional. Phase 4 menyediakan pengajuan mandiri Employee, kamera/geolocation berbasis consent,
+upload privat, riwayat sendiri dan akses bukti pemilik.
+Tidak ada AI, face embedding maupun absensi otomatis. Kamera dan geolocation hanya
+digunakan sebagai bukti permohonan yang ditinjau HR.
 
 ## Relasi
 - User 0..1 Employee; employee.user_id nullable dan unique.
@@ -34,7 +36,7 @@ tests/Feature.
    monitoring profil dan attendance read-only dengan pagination/filter.
 3. HR (selesai Phase 3): CRUD profil (akun hanya role employee, satu akun per profil),
    monitoring, halaman enrollment nonaktif, CSV, approval koreksi/izin.
-4. Employee: query selalu dibatasi employee_id user, history, form correction
+4. Employee (selesai Phase 4): query selalu dibatasi employee_id user, history, form correction
    dengan getUserMedia/geolocation serta penjelasan consent dan alternatif HR;
    form leave dan berkas pendukung privat.
 5. UI, browser/mobile QA, error states, tes workflow dan dokumentasi final.
@@ -52,7 +54,7 @@ tests/Feature.
 - Leave start <= end; konflik rentang dicek; approved leave tidak menimpa attendance
   yang sudah memiliki jam masuk tanpa resolusi eksplisit HR.
 - Approval memvalidasi MIME foto nyata, maksimum 5 MB, koordinat dan waktu koreksi.
-  Form Request upload/pengajuan Employee akan dibuat di Phase 4.
+  Form Request upload/pengajuan Employee tersedia di Phase 4.
 - Bukti tetap di storage/app/private; endpoint download mengotorisasi pemilik/HR
   dan tidak menerima path pengguna secara langsung.
 - GPS, foto dan timestamp perangkat bukan bukti identitas terpercaya.
@@ -83,3 +85,24 @@ audit, retry terbatas dan validasi respons wajib dirancang.
   filter yang sama tanpa batas pagination dan melindungi sel dari formula injection.
 - Statistik hari ini hanya menghitung profil aktif unik dengan check-in.
   Tren historis mengikuti status aktif profil saat query, bukan snapshot headcount.
+
+
+## Catatan implementasi Phase 4
+- PortalController membatasi semua query daftar dengan employee.user_id dari
+  session; detail/file menggunakan policy view. Tidak menerima employee_id dari input.
+- EmployeeSubmissionService menggunakan lock profil yang sama dengan approval HR,
+  mengecek profil aktif, pending koreksi duplikat, overlap izin, dan konflik hadir.
+- Berkas disimpan ke disk local secara privat, UUID/hash filename, tidak memakai
+  nama pengguna. Error transaksi membersihkan berkas baru. Tidak ada edit/delete
+  permohonan mandiri. Rate limit submission 10/menit.
+- PrivateEvidenceService dipakai HR/Employee, mengotorisasi model sebelum membaca
+  path tersimpan; prefix/MIME/headers Phase 3 tetap berlaku.
+- Browser meminta sensor hanya setelah consent dan aksi pengguna; foto dibuat
+  canvas, lokasi tanpa fallback, tracks dihentikan setelah capture/keluar halaman.
+  Consent dicabut membersihkan bukti lokal dan mengabaikan callback lokasi terlambat.
+- captured_at dikonversi dari timestamp browser ke Asia/Jakarta, submitted_at
+  selalu waktu server. Timestamp client masih dapat dimanipulasi.
+- Absensi tidak dibuat saat submit. ApprovalService Phase 3 tetap satu-satunya
+  jalur operasional untuk menulis attendance.
+- Tidak ada migrasi atau dependency runtime baru. JavaScript tests memakai
+  node:test bawaan, dengan mock sensor/DOM; tidak menggantikan tes perangkat nyata.
