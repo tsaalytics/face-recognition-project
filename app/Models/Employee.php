@@ -10,12 +10,17 @@ class Employee extends Model
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean', 'date_of_birth' => 'date'];
+        return ['is_active' => 'boolean', 'date_of_birth' => 'date', 'face_enrollment_version' => 'integer'];
     }
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function faceEmbeddings()
+    {
+        return $this->hasMany(EmployeeFaceEmbedding::class);
     }
 
     public function division()

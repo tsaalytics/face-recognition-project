@@ -8,6 +8,11 @@ use App\Models\User;
 
 class EmployeePolicy
 {
+    public function manageFace(User $user, Employee $record): bool
+    {
+        return $user->is_active && $user->account_status === 'active' && $user->role === Role::Hr;
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->is_active;

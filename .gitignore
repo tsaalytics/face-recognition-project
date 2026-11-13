@@ -24,3 +24,13 @@ Homestead.yaml
 Thumbs.db
 
 /.local-backups/
+
+# Python AI runtime, model weights and private evaluation inputs
+/ai-service/.venv/
+/ai-service/.env
+/ai-service/.models/
+/ai-service/.pytest_cache/
+__pycache__/
+*.py[cod]
+/ai-service/evaluation-data/
+/ai-service/evaluation-results/

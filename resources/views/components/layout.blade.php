@@ -49,7 +49,7 @@ $navigation = auth()->user()->role === \App\Enums\Role::Admin
 <div role="alert" tabindex="-1" data-validation-summary class="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p class="font-semibold">Periksa kembali input Anda.</p><ul class="mt-2 list-inside list-disc">@foreach($errors->messages() as $field=>$messages) @foreach($messages as $error)<li data-error-field="{{ $field }}">{{ $error }}</li>@endforeach @endforeach</ul></div>
 @endif
 {{ $slot }}</main>
-<footer class="px-6 pb-6 text-xs text-slate-500 md:px-10">FaceTrack AI / AI belum diaktifkan</footer>
+<footer class="px-6 pb-6 text-xs text-slate-500 md:px-10">FaceTrack AI / Absensi wajah belum diaktifkan</footer>
 </div>
 </div>
 </body></html>

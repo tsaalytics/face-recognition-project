@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Employee\PortalController;
 use App\Http\Controllers\Hr\ApprovalController;
 use App\Http\Controllers\Hr\EmployeeController;
+use App\Http\Controllers\Hr\FaceEnrollmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -29,6 +30,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 Route::prefix('hr')->name('hr.')->middleware(['auth', 'role:hr'])->group(function () {
     Route::get('/', [App\Http\Controllers\Hr\MonitoringController::class, 'dashboard'])->name('home');
     Route::resource('employees', EmployeeController::class)->except(['show', 'destroy']);
+    Route::get('/employees/{employee}/face', [FaceEnrollmentController::class, 'show'])->name('faces.show');
+    Route::post('/employees/{employee}/face', [FaceEnrollmentController::class, 'store'])->middleware('throttle:3,1')->name('faces.store');
+    Route::delete('/employees/{employee}/face', [FaceEnrollmentController::class, 'destroy'])->middleware('throttle:5,1')->name('faces.destroy');
     Route::get('/attendance/export', [App\Http\Controllers\Hr\MonitoringController::class, 'export'])->name('attendance.export');
     Route::get('/attendance', [App\Http\Controllers\Hr\MonitoringController::class, 'attendance'])->name('attendance.index');
     Route::get('/enrollment', [App\Http\Controllers\Hr\MonitoringController::class, 'enrollment'])->name('enrollment');

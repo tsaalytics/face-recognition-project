@@ -287,7 +287,7 @@ class HrModuleTest extends TestCase
         $this->get('/hr')->assertOk()->assertViewHasAll(['active' => 6, 'present' => 1, 'late' => 0, 'absent' => 5, 'pendingCorrections' => 0, 'pendingLeaves' => 1])->assertViewHas('trend', fn ($t) => count($t) === 7 && $t[6]['count'] === 1)->assertViewHas('divisions', fn ($d) => $d->sum('present_count') === 1);
         $this->get('/hr/corrections?status=approved&q=DEMO-001')->assertViewHas('requests', fn ($r) => $r->total() === 1);
         $this->get('/hr/leaves?status=rejected')->assertSee('Tidak ada permohonan yang cocok');
-        $this->get('/hr/enrollment')->assertSee('AI belum diaktifkan')->assertSee('Not Enrolled');
+        $this->get('/hr/enrollment')->assertSee('Register Face')->assertSee('Not Enrolled');
         $this->post('/hr/enrollment', [])->assertStatus(405);
     }
 

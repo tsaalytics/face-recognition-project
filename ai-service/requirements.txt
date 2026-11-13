@@ -1,0 +1,12 @@
+# Tested on CPython 3.10 / Windows x64. CPU-only ONNX Runtime.
+insightface==2.1
+onnxruntime==1.23.2
+onnx==1.23.2
+numpy==2.2.6
+pillow==12.3.0
+opencv-python==5.0.0.93
+fastapi==0.162.5
+uvicorn==0.54.0
+pydantic-settings==2.15.0
+httpx==0.28.1
+pytest==9.2.0

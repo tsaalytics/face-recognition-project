@@ -1,7 +1,7 @@
 <x-layout title="Direktori Karyawan">
 <h1 class="text-3xl font-bold text-purple">Direktori karyawan</h1>
 <p class="mt-2 text-sm text-slate-500">Kelola profil, divisi, status, dan tautan akun login karyawan.</p>
-<div class="mt-5"><a href="{{ route('hr.employees.create') }}" class="button">+ Tambah karyawan</a></div>
+<div class="mt-5 flex flex-wrap gap-3"><a href="{{ route('hr.employees.create') }}" class="button">+ Tambah karyawan</a><a href="{{ route('hr.enrollment') }}" class="button">Register Face / Kelola enrollment</a></div>
 <x-monitor-filters :divisions="$divisions" :reset="route('hr.employees.index')"/>
 <div class="table-panel" role="region" aria-label="Tabel data, geser untuk melihat semua kolom" tabindex="0"><table class="data-table"><thead><tr><th scope="col">NIK / Nama</th><th scope="col">Divisi / Jabatan</th><th scope="col">Kontak</th><th scope="col">Akun login</th><th scope="col">Status</th><th scope="col">Aksi</th></tr></thead><tbody>
 @forelse($employees as $employee)

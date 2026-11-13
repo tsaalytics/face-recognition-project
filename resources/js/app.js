@@ -1,4 +1,6 @@
 import { setupSubmission, setupNavigation, setupDecision, setupEvidencePreview } from './ui';
+import { setupFaceEnrollment } from './face-enrollment';
+document.querySelectorAll('[data-face-enrollment]').forEach((form) => setupFaceEnrollment(form));
 document.querySelectorAll('[data-submit-form]').forEach((form) => setupSubmission(form));
 document.querySelectorAll('[data-nav-toggle]').forEach((button) => setupNavigation(button, document.getElementById(button.getAttribute('aria-controls'))));
 document.querySelectorAll('[data-decision-form]').forEach((form) => setupDecision(form));

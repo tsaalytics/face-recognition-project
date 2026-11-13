@@ -1,7 +1,7 @@
 # FaceTrack AI
 
 Laravel 13 / PHP 8.3, Blade + Tailwind 4, Vite, MySQL.
-Modul Admin, HR dan Employee tersedia. AI/face recognition belum diaktifkan.
+Modul Admin, HR dan Employee tersedia. Enrollment wajah HR tersedia; absensi wajah belum diaktifkan.
 
 Dokumen ini menjelaskan perilaku **setelah Employee & Invitation Refinement**.
 Laporan phase-1/2/3/4 di docs adalah catatan historis, bukan spesifikasi terbaru.
@@ -63,7 +63,7 @@ Pada audit lokal: enam profil belum memiliki tanggal lahir, sehingga dry-run eli
   absensi read-only dengan filter/pagination. Akun Admin tidak dapat diedit
   melalui form biasa; Admin tidak mengatur password pengguna.
 - HR: dashboard/tren/divisi/pending, tambah/edit profil, monitoring dan CSV,
-  enrollment placeholder, detail bukti privat, approve/reject koreksi/izin.
+  enrollment wajah berbasis consent, detail bukti privat, approve/reject koreksi/izin.
 - Employee: riwayat milik sendiri, pengajuan koreksi/izin, status dan bukti sendiri.
   Data/berkas orang lain tidak dapat diakses.
 - Pengubahan email profil tertaut oleh HR menyinkronkan email login dan mencabut
@@ -152,3 +152,20 @@ Status UI, hasil QA dan checklist browser/perangkat: [docs/phase-5.md](docs/phas
 
 ## Troubleshooting email/lokasi
 Lihat [Gmail SMTP dan lokasi perangkat](docs/email-location-troubleshooting.md).
+
+## Phase 6.1 — Setup AI service
+Service Python CPU terpisah dan health internal disiapkan menggunakan InsightFace
+buffalo_m. Enrollment dan recognition web masih dinonaktifkan pada tahap ini.
+Lihat [audit, instalasi dan verifikasi AI](docs/ai_architecture.md) serta
+[rencana evaluasi](docs/face_recognition_evaluation.md).
+
+Phase 6.2 menambahkan endpoint ekstraksi embedding internal dan utility cosine matching
+Laravel. Lihat [implementasi dan pengujian Phase 6.2](docs/phase-6-2.md).
+Enrollment web tersedia sejak Phase 6.3; attendance recognition menunggu Phase 6.4.
+
+## Phase 6.3 — HR face enrollment
+HR dapat Register Face, Re-enroll, dan Delete Enrollment melalui Karyawan -> Kelola
+enrollment. Sampel kamera sementara diteruskan ke Python; hanya embedding terenkripsi
+dan metadata disimpan. Migrasi 000004 menambah tabel embedding/audit serta versi
+enrollment tanpa mengganti data existing. Absensi wajah masih menunggu Phase 6.4.
+Lihat [cara menjalankan, privasi dan hasil tes](docs/phase-6-3.md).
