@@ -3,12 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\Role;
+use App\Mail\AccountInvitation;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class AdminModuleTest extends TestCase
@@ -20,6 +21,7 @@ class AdminModuleTest extends TestCase
         parent::setUp();
         $this->withoutVite();
         $this->seed();
+        Mail::fake();
     }
 
     private function account(string $role = 'admin'): User
@@ -29,7 +31,7 @@ class AdminModuleTest extends TestCase
 
     private function payload(array $overrides = []): array
     {
-        return array_replace(['name' => 'New HR', 'email' => 'new@facetrack.test', 'role' => 'hr', 'is_active' => '1', 'password' => 'SecureExample!2026', 'password_confirmation' => 'SecureExample!2026'], $overrides);
+        return array_replace(['employee_id' => Employee::whereNull('user_id')->first()->id, 'role' => 'hr', 'account_status' => 'active'], $overrides);
     }
 
     public function test_admin_pages_are_accessible_only_to_admin(): void
@@ -52,25 +54,31 @@ class AdminModuleTest extends TestCase
         }
     }
 
-    public function test_admin_can_create_hr_and_employee_accounts_with_hashed_passwords(): void
+    public function test_admin_invites_hr_and_employee_using_profile_email(): void
     {
+
         $this->actingAs($this->account());
         foreach (['hr', 'employee'] as $role) {
-            $this->post('/admin/users', $this->payload(['role' => $role, 'email' => $role.'2@facetrack.test']))->assertRedirect('/admin/users');
-            $user = User::where('email', $role.'2@facetrack.test')->firstOrFail();
+            $profile = Employee::whereNull('user_id')->first();
+            $this->post('/admin/users', $this->payload(['employee_id' => $profile->id, 'role' => $role, 'email' => 'forged@facetrack.test']))->assertRedirect('/admin/users');
+            $user = $profile->fresh()->user;
+            $this->assertSame($profile->email, $user->email);
             $this->assertSame($role, $user->role->value);
-            $this->assertTrue($user->is_active);
-            $this->assertTrue(Hash::check('SecureExample!2026', $user->password));
-            $this->assertNull($user->employee);
+            $this->assertSame('pending_activation', $user->account_status);
+            $this->assertFalse($user->is_active);
         }
+        Mail::assertSent(AccountInvitation::class, 2);
+
     }
 
-    public function test_user_validation_rejects_invalid_role_duplicate_email_and_weak_password(): void
+    public function test_invalid_role_profile_and_manual_password_are_rejected(): void
     {
+
         $this->actingAs($this->account());
-        $this->post('/admin/users', $this->payload(['role' => 'admin', 'email' => 'hr@facetrack.test', 'password' => 'weak', 'password_confirmation' => 'wrong']))->assertSessionHasErrors(['role', 'email', 'password']);
-        $this->post('/admin/users', $this->payload(['is_active' => 'invalid', 'name' => '']))->assertSessionHasErrors(['is_active', 'name']);
+        $this->post('/admin/users', $this->payload(['role' => 'admin', 'employee_id' => 99999, 'password' => 'manual']))->assertSessionHasErrors(['role', 'employee_id', 'password']);
+        $this->post('/admin/users', $this->payload(['employee_id' => $this->account('employee')->employee->id]))->assertSessionHasErrors('employee_id');
         $this->assertDatabaseCount('users', 3);
+
     }
 
     public function test_admin_accounts_cannot_be_edited_or_disabled(): void
@@ -85,35 +93,41 @@ class AdminModuleTest extends TestCase
 
     public function test_admin_can_edit_role_and_disable_account_without_changing_password(): void
     {
+
         $hr = $this->account('hr');
         $password = $hr->password;
-        $this->actingAs($this->account())->put('/admin/users/'.$hr->id, $this->payload(['name' => 'Updated Name', 'email' => $hr->email, 'role' => 'employee', 'is_active' => '0', 'password' => '', 'password_confirmation' => '']))->assertRedirect('/admin/users');
-        $hr->refresh();
-        $this->assertSame('Updated Name', $hr->name);
-        $this->assertSame(Role::Employee, $hr->role);
-        $this->assertFalse($hr->is_active);
-        $this->assertSame($password, $hr->password);
+        $this->actingAs($this->account())->put('/admin/users/'.$hr->id, ['role' => 'employee', 'account_status' => 'disabled'])->assertRedirect('/admin/users');
+        $this->assertSame(Role::Employee, $hr->fresh()->role);
+        $this->assertFalse($hr->fresh()->is_active);
+        $this->assertSame($password, $hr->fresh()->password);
+
     }
 
-    public function test_linked_employee_cannot_change_to_hr(): void
+    public function test_linked_profile_can_receive_hr_role_without_losing_relationship(): void
     {
+
         $user = $this->account('employee');
-        $this->actingAs($this->account())->put('/admin/users/'.$user->id, $this->payload(['email' => $user->email, 'role' => 'hr', 'password' => '', 'password_confirmation' => '']))->assertSessionHasErrors('role');
-        $this->assertSame(Role::Employee, $user->fresh()->role);
+        $this->actingAs($this->account())->put('/admin/users/'.$user->id, ['role' => 'hr', 'account_status' => 'active'])->assertRedirect('/admin/users');
+        $this->assertSame(Role::Hr, $user->fresh()->role);
         $this->assertNotNull($user->fresh()->employee);
+
     }
 
-    public function test_password_change_revokes_database_sessions_and_remember_token(): void
+    public function test_disabling_revokes_sessions_and_admin_cannot_reset_password(): void
     {
+
         $user = $this->account('hr');
+        $password = $user->password;
         $user->remember_token = 'old-token';
         $user->save();
         DB::table('sessions')->insert(['id' => 'target-session', 'user_id' => $user->id, 'ip_address' => '127.0.0.1', 'user_agent' => 'test', 'payload' => '', 'last_activity' => time()]);
         config(['session.driver' => 'database']);
-        $this->actingAs($this->account())->put('/admin/users/'.$user->id, $this->payload(['email' => $user->email]))->assertRedirect('/admin/users');
+        $this->actingAs($this->account())->put('/admin/users/'.$user->id, ['role' => 'hr', 'account_status' => 'disabled'])->assertRedirect('/admin/users');
         $this->assertDatabaseMissing('sessions', ['id' => 'target-session']);
         $this->assertNotSame('old-token', $user->fresh()->remember_token);
-        $this->assertTrue(Hash::check('SecureExample!2026', $user->fresh()->password));
+        $this->assertSame($password, $user->fresh()->password);
+        $this->put('/admin/users/'.$user->id, ['role' => 'hr', 'account_status' => 'disabled', 'password' => 'SecureExample!2026'])->assertSessionHasErrors('password');
+
     }
 
     public function test_user_search_role_status_and_pagination(): void

@@ -115,8 +115,8 @@ class PortalController extends Controller
         return $service->response($correction, $correction->evidence_path, true);
     }
 
-    public function attachment(LeaveRequest $leave,PrivateEvidenceService $service)
+    public function attachment(LeaveRequest $leave, PrivateEvidenceService $service)
     {
-        return $service->response($leave,$leave->attachment_path,false);
+        return $service->response($leave, $leave->attachment_path, false);
     }
 }

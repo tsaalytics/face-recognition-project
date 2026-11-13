@@ -25,6 +25,7 @@ class HrModuleTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-11 12:00:00'));
         Storage::fake('local');
         $this->seed();
+        AttendanceCorrectionRequest::first()->forceFill(['submitted_at' => today()->setTime(8, 0)])->save();
     }
 
     private function user(string $role = 'hr'): User
@@ -39,7 +40,7 @@ class HrModuleTest extends TestCase
 
     private function payload(array $data = []): array
     {
-        return array_replace(['employee_number' => 'HR-NEW', 'name' => 'New Employee', 'email' => 'newprofile@facetrack.test', 'phone' => '08000000', 'position' => 'Operator', 'division_id' => Division::first()->id, 'is_active' => '1', 'user_id' => null], $data);
+        return array_replace(['date_of_birth' => '2000-05-17', 'home_address' => 'Alamat sintetis pengujian', 'employee_number' => 'HR-NEW', 'name' => 'New Employee', 'email' => 'newprofile@facetrack.test', 'phone' => '08000000', 'position' => 'Operator', 'division_id' => Division::first()->id, 'is_active' => '1', 'user_id' => null], $data);
     }
 
     private function decide(string $decision = 'approved', array $data = [])
@@ -79,10 +80,10 @@ class HrModuleTest extends TestCase
         $this->assertDatabaseCount('users', 3);
         $owner = $this->user('employee');
         $owner->employee->update(['user_id' => null]);
-        $this->put('/hr/employees/'.$new->id, $this->payload(['user_id' => $owner->id, 'name' => 'Edited']))->assertRedirect('/hr/employees');
+        $this->put('/hr/employees/'.$new->id, $this->payload(['user_id' => $owner->id, 'email' => $owner->email, 'name' => 'Edited']))->assertRedirect('/hr/employees');
         $this->assertSame($owner->id, $new->fresh()->user_id);
         $this->assertSame('Edited', $new->fresh()->name);
-        $this->put('/hr/employees/'.$new->id, $this->payload(['user_id' => null, 'is_active' => '0']))->assertRedirect('/hr/employees');
+        $this->put('/hr/employees/'.$new->id, $this->payload(['user_id' => null, 'email' => $owner->email, 'is_active' => '0']))->assertRedirect('/hr/employees');
         $this->assertNull($new->fresh()->user_id);
         $this->assertFalse($new->fresh()->is_active);
         $this->get('/hr/employees')->assertSee('Edit profil');
@@ -91,7 +92,7 @@ class HrModuleTest extends TestCase
     public function test_profile_validation_blocks_invalid_or_duplicate_account_links_and_enrollment_forgery(): void
     {
         $this->actingAs($this->user());
-        foreach ([$this->user()->id, $this->user('admin')->id, $this->user('employee')->id] as $id) {
+        foreach ([$this->user('admin')->id, $this->user('employee')->id] as $id) {
             $this->post('/hr/employees', $this->payload(['user_id' => $id]))->assertSessionHasErrors('user_id');
         }
         $this->post('/hr/employees', $this->payload(['employee_number' => 'DEMO-001', 'email' => 'demo1@facetrack.test', 'division_id' => 99999]))->assertSessionHasErrors(['employee_number', 'email', 'division_id']);
@@ -105,7 +106,7 @@ class HrModuleTest extends TestCase
         $this->decide()->assertRedirect('/hr/corrections/'.$request->id);
         $this->assertSame('approved', $request->fresh()->status);
         $record = AttendanceRecord::whereDate('attendance_date', today())->firstOrFail();
-        $this->assertSame('hr_approved', $record->source);
+        $this->assertSame('hr_approved_correction', $record->source);
         $this->assertSame('present', $record->status);
         $this->assertSame('08:00', $record->check_in_at->format('H:i'));
         $this->assertDatabaseHas('approval_logs', ['attendance_correction_request_id' => $request->id, 'leave_request_id' => null, 'reviewed_by' => $this->user()->id, 'from_status' => 'pending', 'to_status' => 'approved', 'notes' => 'Reviewed']);
@@ -141,7 +142,7 @@ class HrModuleTest extends TestCase
     public function test_approval_updates_existing_session_and_calculates_lateness(): void
     {
         $r = $this->correction();
-        $r->requested_at = today()->setTime(8, 15);
+        $r->submitted_at = today()->setTime(8, 15);
         $r->save();
         AttendanceRecord::create(['employee_id' => $r->employee_id, 'attendance_date' => today(), 'session' => 'regular', 'status' => 'absent', 'source' => 'seed_fixture']);
         $this->decide()->assertRedirect();
@@ -151,7 +152,7 @@ class HrModuleTest extends TestCase
         $out = $r->replicate();
         $out->type = 'check_out';
         $out->status = 'pending';
-        $out->requested_at = today()->setTime(11, 30);
+        $out->submitted_at = today()->setTime(11, 30);
         $out->save();
         $this->actingAs($this->user())->post('/hr/corrections/'.$out->id.'/decision', ['decision' => 'approved'])->assertRedirect();
         $this->assertSame('11:30', $record->fresh()->check_out_at->format('H:i'));
@@ -161,7 +162,7 @@ class HrModuleTest extends TestCase
     public function test_correction_time_and_session_rules_are_enforced(): void
     {
         $r = $this->correction();
-        foreach ([['requested_at' => today()->addDay()->setTime(8, 0)], ['requested_at' => now()->addHour()], ['requested_at' => today()->setTime(8, 0), 'session' => 'night']] as $data) {
+        foreach ([['submitted_at' => today()->addDay()->setTime(8, 0)], ['submitted_at' => now()->addHour()], ['submitted_at' => today()->setTime(8, 0), 'session' => 'night']] as $data) {
             $r->forceFill($data)->save();
             $this->decide()->assertSessionHasErrors('decision');
         }
@@ -173,11 +174,11 @@ class HrModuleTest extends TestCase
         $r = $this->correction();
         AttendanceRecord::create(['employee_id' => $r->employee_id, 'attendance_date' => today(), 'session' => 'regular', 'check_in_at' => today()->setTime(9, 0), 'check_out_at' => today()->setTime(10, 0), 'status' => 'late', 'source' => 'seed_fixture']);
         $r->type = 'check_out';
-        $r->requested_at = today()->setTime(8, 0);
+        $r->submitted_at = today()->setTime(8, 0);
         $r->save();
         $this->decide()->assertSessionHasErrors('decision');
         $r->type = 'check_in';
-        $r->requested_at = today()->setTime(11, 0);
+        $r->submitted_at = today()->setTime(11, 0);
         $r->save();
         $this->decide()->assertSessionHasErrors('decision');
         $this->assertDatabaseCount('approval_logs', 0);
@@ -336,8 +337,8 @@ class HrModuleTest extends TestCase
         $r->evidence_path = 'corrections/large.png';
         $r->save();
         $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=');
-        Storage::disk('local')->put('corrections/large.png',$png.str_repeat('x',6 * 1024 * 1024));
+        Storage::disk('local')->put('corrections/large.png', $png.str_repeat('x', 6 * 1024 * 1024));
         $this->decide()->assertSessionHasErrors('decision');
-        $this->assertDatabaseCount('approval_logs',0);
+        $this->assertDatabaseCount('approval_logs', 0);
     }
 }

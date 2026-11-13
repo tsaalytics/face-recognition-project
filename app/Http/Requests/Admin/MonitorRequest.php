@@ -22,6 +22,7 @@ class MonitorRequest extends FormRequest
             'to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('from'), 'after_or_equal:from')],
             'status' => ['nullable', Rule::in(['present', 'late', 'leave', 'absent'])],
             'role' => ['nullable', Rule::in(['admin', 'hr', 'employee'])],
+            'account_status' => ['nullable', Rule::in(['pending_activation', 'active', 'disabled'])],
             'active' => ['nullable', Rule::in(['0', '1'])],
         ];
     }

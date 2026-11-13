@@ -1,3 +1,9 @@
+# Arsitektur saat ini
+Spesifikasi terbaru: README.md dan docs/refinement.md.
+Refinement memisahkan NIK/ID bisnis, menambahkan undangan/aktivasi akun, dan
+mengganti waktu koreksi menjadi waktu submit server. Bagian fase di bawah bersifat
+historis ketika bertentangan dengan aturan terbaru.
+
 # FaceTrack AI - rancangan pengembangan
 
 ## Scope
@@ -40,6 +46,8 @@ tests/Feature.
    dengan getUserMedia/geolocation serta penjelasan consent dan alternatif HR;
    form leave dan berkas pendukung privat.
 5. UI, browser/mobile QA, error states, tes workflow dan dokumentasi final.
+   Implementasi UI dan tes otomatis sudah diverifikasi; QA visual/perangkat masih
+   tertunda karena helper browser tidak tersedia. Lihat docs/phase-5.md.
 
 ## Aturan service approval Phase 3
 - Gate approve/reject wajib, HR aktif, request pending, tidak menilai permohonan sendiri.
@@ -106,3 +114,26 @@ audit, retry terbatas dan validasi respons wajib dirancang.
   jalur operasional untuk menulis attendance.
 - Tidak ada migrasi atau dependency runtime baru. JavaScript tests memakai
   node:test bawaan, dengan mock sensor/DOM; tidak menggantikan tes perangkat nyata.
+
+
+## Refinement
+- employees: business_id UNIQUE nullable string(12), date_of_birth nullable DATE,
+  home_address nullable TEXT. Null untuk legacy tanpa data nyata; PK/NIK/FK tetap.
+- EmployeeIdGenerator: random_int, suffix DOB, bounded retry + unique DB collision
+  retry. Issued ID tidak diganti ketika DOB berubah.
+- users: account_status, activated_at, invitation_sent_at. Existing active/disabled
+  dipertahankan. is_active tetap dipakai sebagai guard kompatibilitas.
+- Password reset table existing digunakan kembali oleh Password Broker untuk
+  undangan, tanpa tabel/token plaintext duplikat. Tidak ada public reset request.
+- Activation lock user, cek pending/profile/token/expiry, hash password, consume
+  token dan activate dalam satu transaksi. Resend lock user dan menggugurkan token lama.
+- Pengiriman email sinkron setelah pembuatan akun tersimpan. Jika gagal akun pending
+  tetap ada; UI meminta Admin resend setelah cooldown. Belum ada queue/outbox/retry worker.
+- HR edit email tertaut menyinkronkan login dan mencabut sesi/token lama dalam
+  transaksi profil. Password tidak berubah. Undangan pending harus dikirim ulang.
+- Correction submit mengambil satu now() untuk attendance_date/requested_at/submitted_at.
+  Approval memakai submitted_at; approval timestamp di log terpisah.
+- Attendance source diperluas VARCHAR(40) untuk hr_approved_correction, sambil
+  mempertahankan nilai hr_approved/seed_fixture lama.
+- Semua datetime aplikasi ditulis/dibaca dalam Asia/Jakarta sesuai data existing;
+  tidak melakukan konversi zona waktu retroaktif yang dapat menggeser sejarah.

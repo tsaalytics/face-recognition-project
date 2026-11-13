@@ -17,8 +17,7 @@ class CorrectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'attendance_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
-            'time' => ['required', 'date_format:H:i'], 'type' => ['required', Rule::in(['check_in', 'check_out'])],
+            'type' => ['required', Rule::in(['check_in', 'check_out'])],
             'reason' => ['required', 'string', 'min:10', 'max:2000'],
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'dimensions:min_width=1,min_height=1,max_width=4096,max_height=4096'],
             'captured_at' => ['required', 'date', function ($attribute, $value, $fail) {

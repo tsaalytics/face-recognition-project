@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\MonitoringController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Employee\PortalController;
 use App\Http\Controllers\Hr\ApprovalController;
@@ -55,3 +56,7 @@ Route::prefix('employee')->name('employee.')->middleware(['auth', 'role:employee
     Route::get('/leaves/{leave}', [PortalController::class, 'leave'])->name('leaves.show');
     Route::get('/leaves/{leave}/attachment', [PortalController::class, 'attachment'])->name('leaves.attachment');
 });
+
+Route::get('/invitation/{token}', [InvitationController::class, 'show'])->middleware(['guest', 'throttle:30,1'])->name('invitation.show');
+Route::post('/invitation', [InvitationController::class, 'store'])->middleware(['guest', 'throttle:10,1'])->name('invitation.activate');
+Route::post('/admin/users/{user}/invitation', [UserController::class, 'resend'])->middleware(['auth', 'role:admin', 'throttle:5,1'])->name('admin.users.invitation');

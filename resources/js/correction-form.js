@@ -32,16 +32,21 @@ export function setupCorrectionForm(form, browser = window) {
         video.classList.add('hidden');
         capture.disabled = true;
     };
-    const clearEvidence = () => {
+    const clearPhoto = () => {
         generation++;
-        locationVersion++;
         stopCamera();
-        photo = null; capturedAt = null; coordinates = null; locatedAt = null;
+        photo = null; capturedAt = null;
         if (photoUrl) browser.URL.revokeObjectURL(photoUrl);
         photoUrl = null;
         preview.removeAttribute('src');
         preview.classList.add('hidden');
         cameraStatus.textContent = 'Belum ada foto.';
+        refresh();
+    };
+    const clearEvidence = () => {
+        clearPhoto();
+        locationVersion++;
+        coordinates = null; locatedAt = null;
         locationStatus.textContent = 'Belum ada koordinat.';
         locate.disabled = false;
         refresh();
@@ -52,7 +57,7 @@ export function setupCorrectionForm(form, browser = window) {
     });
     start.addEventListener('click', async () => {
         if (!consent.checked) return error('Baca informasi privasi dan centang persetujuan terlebih dahulu.');
-        clearEvidence();
+        clearPhoto();
         if (!browser.isSecureContext || !browser.navigator.mediaDevices?.getUserMedia) {
             return error('Kamera browser tidak tersedia. Gunakan HTTPS atau localhost dan perangkat berkamera. Hubungi HR untuk prosedur alternatif.');
         }
@@ -116,7 +121,7 @@ export function setupCorrectionForm(form, browser = window) {
         const ticket = ++locationVersion;
         locate.disabled = true;
         locationStatus.textContent = 'Meminta lokasi perangkat...';
-        browser.navigator.geolocation.getCurrentPosition((position) => {
+        const success = (position) => {
             if (ticket !== locationVersion || !consent.checked) return;
             locate.disabled = false;
             const { latitude, longitude, accuracy } = position.coords;
@@ -125,17 +130,35 @@ export function setupCorrectionForm(form, browser = window) {
                 return error('Perangkat memberikan koordinat tidak valid. Coba kembali atau hubungi HR.');
             }
             coordinates = { latitude, longitude }; locatedAt = Date.now();
-            locationStatus.textContent = latitude.toFixed(7) + ', ' + longitude.toFixed(7) + (Number.isFinite(accuracy) ? ' / estimasi akurasi ?' + Math.round(accuracy) + ' meter' : '');
+            locationStatus.textContent = latitude.toFixed(7) + ', ' + longitude.toFixed(7) + (Number.isFinite(accuracy) ? ' / estimasi akurasi +/-' + Math.round(accuracy) + ' meter' : '');
+            errors.classList.add('hidden');
             refresh();
-        }, (cause) => {
-            if (ticket !== locationVersion) return;
+        };
+        const failed = (cause) => {
+            if (ticket !== locationVersion || !consent.checked) return;
             locate.disabled = false;
             locationStatus.textContent = 'Lokasi belum diperoleh.';
-            error(cause.code === 1
-                ? 'Izin lokasi ditolak. Izinkan jika bersedia, atau hubungi HR untuk prosedur alternatif. Tidak ada koordinat yang dibuat otomatis.'
-                : 'Lokasi tidak tersedia atau permintaan melewati batas waktu. Coba di area dengan sinyal lebih baik atau hubungi HR.');
+            const messages = {
+                1: 'Izin lokasi ditolak (kode 1). Periksa izin lokasi situs dan Windows Settings > Privacy & security > Location jika bersedia. Hubungi HR untuk alternatif; tidak ada koordinat pengganti.',
+                2: 'Perangkat tidak dapat menentukan lokasi (kode 2). Periksa Location services Windows, akses lokasi untuk browser, dan koneksi internet. Jika tetap gagal, hubungi HR.',
+                3: 'Pencarian lokasi melewati batas waktu (kode 3). Coba kembali dengan koneksi internet/Wi-Fi yang tersedia atau hubungi HR.',
+            };
+            error(messages[cause.code] || 'Lokasi tidak dapat diperoleh. Periksa izin perangkat atau hubungi HR.');
             refresh();
-        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+        };
+        const requestPosition = (highAccuracy) => {
+            if (ticket !== locationVersion || !consent.checked) return;
+            try {
+                browser.navigator.geolocation.getCurrentPosition(success, (cause) => {
+                    if (ticket !== locationVersion || !consent.checked) return;
+                    if (highAccuracy && [2, 3].includes(cause.code)) {
+                        locationStatus.textContent = 'Akurasi tinggi belum tersedia. Mencoba lokasi standar perangkat (hingga 20 detik)...';
+                        requestPosition(false);
+                    } else { failed(cause); }
+                }, { enableHighAccuracy: highAccuracy, maximumAge: 0, timeout: highAccuracy ? 15000 : 20000 });
+            } catch { failed({code: 2}); }
+        };
+        requestPosition(true);
     });
     form.addEventListener('submit', async (event) => {
         event.preventDefault();

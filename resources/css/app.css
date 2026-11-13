@@ -24,3 +24,35 @@
  .data-table td { @apply border-t border-slate-100 px-5 py-4 align-top; }
  .data-table .empty-state { @apply py-12 text-center text-slate-500; }
 }
+
+@layer base {
+ html { -webkit-text-size-adjust: 100%; }
+ body { overflow-wrap: anywhere; }
+ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+ button:not(:disabled), select { cursor: pointer; }
+ :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #4B075D; outline-offset: 3px;
+ }
+ aside :where(a, button):focus-visible { outline-color: #FFFFFF; }
+ input, select, textarea { font-size: 1rem; }
+ input[readonly], textarea[readonly] { background-color: #F7F3F8; }
+ [aria-invalid="true"] { border-color: #be123c; }
+ @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+ }
+}
+@layer components {
+ .skip-link { @apply sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:font-semibold focus:text-purple focus:shadow-lg; }
+ .button { @apply min-h-11 max-w-full whitespace-normal text-center; }
+ .field { @apply min-h-11 min-w-0 max-w-full; font-size: 1rem; }
+ .filter-panel > div { @apply min-w-0 w-full sm:w-auto; }
+ .filter-panel .button, .filter-panel .reset-link { @apply min-h-11; }
+ .table-panel { @apply max-w-full; overscroll-behavior-x: contain; }
+ .table-panel:focus-visible { outline: 3px solid #4B075D; outline-offset: 3px; }
+ .data-table td { overflow-wrap: anywhere; }
+ .data-table th { @apply normal-case tracking-normal; }
+ @media (max-width: 639px) {
+  .data-table th, .data-table td { @apply px-4 py-3; }
+  .data-table { min-width: 38rem; }
+ }
+}

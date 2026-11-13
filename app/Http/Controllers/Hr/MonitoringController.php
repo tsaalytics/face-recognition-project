@@ -34,7 +34,7 @@ class MonitoringController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Tanggal', 'Sesi', 'NIK', 'Nama', 'Divisi', 'Masuk', 'Pulang', 'Status', 'Sumber'], ',', '"', '');
             foreach ($service->attendanceQuery($filters)->lazy(500) as $r) {
-                $row = [$r->attendance_date->format('Y-m-d'), $r->session, $r->employee->employee_number, $r->employee->name, $r->employee->division->name, $r->check_in_at?->format('Y-m-d H:i:s') ?? '', $r->check_out_at?->format('Y-m-d H:i:s') ?? '', $r->status, $r->source === 'seed_fixture' ? 'Data demo sintetis' : 'HR Approved'];
+                $row = [$r->attendance_date->format('Y-m-d'), $r->session, $r->employee->employee_number, $r->employee->name, $r->employee->division->name, $r->check_in_at?->format('Y-m-d H:i:s') ?? '', $r->check_out_at?->format('Y-m-d H:i:s') ?? '', $r->status, $r->source === 'seed_fixture' ? 'Data demo sintetis' : ($r->source === 'hr_approved_correction' ? 'HR Approved Correction' : 'HR Approved')];
                 $row = array_map(fn ($s) => preg_match('/^[\s]*[=+@\-]/u', (string) $s) ? "'".$s : $s, $row);
                 fputcsv($out, $row, ',', '"', '');
             }

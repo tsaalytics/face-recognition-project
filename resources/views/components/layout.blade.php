@@ -3,8 +3,9 @@
 <html lang="id">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>{{ $title }} / FaceTrack AI</title>@vite(['resources/css/app.css','resources/js/app.js'])</head>
 <body class="bg-lavender text-slate-800 antialiased">
+<a href="#main-content" class="skip-link">Langsung ke konten utama</a>
 <div class="min-h-screen md:flex">
-<aside class="bg-purple text-white p-6 md:w-64 md:shrink-0">
+<aside class="bg-purple text-white p-5 md:w-64 md:shrink-0 md:p-6" aria-label="Workspace">
 <a href="{{ url('/') }}" class="text-2xl font-bold tracking-tight">FaceTrack<span class="text-pink-300"> AI</span></a>
 <p class="mt-2 text-xs text-purple-200">EMPLOYEE ATTENDANCE</p>
 @auth
@@ -37,14 +38,15 @@ $navigation = auth()->user()->role === \App\Enums\Role::Admin
 <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white px-6 py-5 md:px-10">
 <span class="font-semibold">{{ $title }}</span>
 @auth
-<div class="flex items-center gap-4"><span class="text-sm">{{ auth()->user()->name }}</span>
+<div class="flex min-w-0 max-w-full items-center gap-4"><span class="min-w-0 break-words text-sm">{{ auth()->user()->name }}</span>
 <form method="POST" action="{{ route('logout') }}">@csrf<button class="text-sm font-semibold text-magenta hover:underline">Keluar</button></form></div>
 @else<span class="rounded-full bg-lavender px-3 py-1 text-xs font-semibold text-purple">Portal internal</span>@endauth
 </header>
-<main class="mx-auto max-w-6xl p-6 md:p-10">
+<main id="main-content" tabindex="-1" class="mx-auto max-w-6xl min-w-0 p-4 sm:p-6 md:p-10">
+@if(session('warning'))<div role="alert" class="mb-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{{ session('warning') }}</div>@endif
 @if(session('success'))<div role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">{{ session('success') }}</div>@endif
 @if($errors->any() && !request()->routeIs('login'))
-<div role="alert" class="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p class="font-semibold">Periksa kembali input Anda.</p><ul class="mt-2 list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+<div role="alert" tabindex="-1" data-validation-summary class="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p class="font-semibold">Periksa kembali input Anda.</p><ul class="mt-2 list-inside list-disc">@foreach($errors->messages() as $field=>$messages) @foreach($messages as $error)<li data-error-field="{{ $field }}">{{ $error }}</li>@endforeach @endforeach</ul></div>
 @endif
 {{ $slot }}</main>
 <footer class="px-6 pb-6 text-xs text-slate-500 md:px-10">FaceTrack AI / AI belum diaktifkan</footer>

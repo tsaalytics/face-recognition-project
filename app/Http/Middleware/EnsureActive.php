@@ -10,7 +10,7 @@ class EnsureActive
 {
     public function handle(Request $request, Closure $next)
     {
-        if ($request->user() && ! $request->user()->is_active) {
+        if ($request->user() && (! $request->user()->is_active || $request->user()->account_status !== 'active')) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

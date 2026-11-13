@@ -153,3 +153,33 @@ test('network uncertainty tells employee to check existing requests before retry
     assert.match(h.get('correction-errors').textContent, /Periksa daftar permohonan/);
     assert.equal(h.get('correction-submit').disabled, false);
 });
+
+test('opening and retaking camera preserves granted location', async () => {
+ const h=harness();
+ await h.consent();await h.fire('get-location');h.grantLocation();
+ await h.fire('start-camera');await h.fire('capture-photo');
+ assert.equal(h.get('correction-submit').disabled,false);
+ await h.fire('start-camera');await h.fire('capture-photo');
+ assert.equal(h.get('correction-submit').disabled,false);
+ await h.form.fire('submit');assert.equal(h.fetches[0].body.get('latitude'),'-6.2');
+});
+test('unavailable and timeout retry standard location once then explain exact cause', async () => {
+ for(const code of [2,3]) {
+  const h=harness({locationError:code});
+  await h.consent();await h.fire('get-location');
+  assert.equal(h.state().locationCalls,2);
+  assert.equal(h.state().pendingLocation.options.enableHighAccuracy,false);
+  assert.match(h.get('correction-errors').textContent,new RegExp('kode '+code));
+  assert.equal(h.get('correction-submit').disabled,true);
+ }
+});
+test('standard location retry can succeed and consent denial is never retried', async () => {
+ const h=harness();await h.consent();await h.fire('get-location');
+ h.state().pendingLocation.fail({code:3});
+ assert.equal(h.state().pendingLocation.options.enableHighAccuracy,false);
+ h.grantLocation();
+ await h.fire('start-camera');await h.fire('capture-photo');
+ assert.equal(h.get('correction-submit').disabled,false);
+ const denied=harness({locationError:1});await denied.consent();await denied.fire('get-location');
+ assert.equal(denied.state().locationCalls,1);assert.equal(denied.fetches.length,0);
+});

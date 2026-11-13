@@ -51,8 +51,8 @@ class ApprovalService
 
     private function correct(AttendanceCorrectionRequest $request): void
     {
-        $date = $request->attendance_date->toDateString();
-        $time = $request->requested_at;
+        $time = $request->submitted_at;
+        $date = $time->toDateString();
         if ($request->session !== config('attendance.default_session') || $time->toDateString() !== $date || $time->isFuture()) {
             $this->fail('Koreksi hanya mendukung sesi regular pada tanggal yang sama dan waktu yang telah berlalu.');
         }
@@ -87,7 +87,7 @@ class ApprovalService
         }
         $start = $record->check_in_at->copy()->setTimeFromTimeString(config('attendance.shift_start'))->addMinutes(config('attendance.late_grace_minutes'));
         $record->status = $record->check_in_at->gt($start) ? 'late' : 'present';
-        $record->source = 'hr_approved';
+        $record->source = 'hr_approved_correction';
         $record->save();
     }
 

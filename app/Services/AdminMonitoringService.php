@@ -19,7 +19,7 @@ class AdminMonitoringService
     public function employees(array $f)
     {
         return Employee::with(['division', 'user'])
-            ->when($f['q'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%")->orWhere('email', 'like', "%$s%")))
+            ->when($f['q'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%")->orWhere('business_id', 'like', "%$s%")->orWhere('email', 'like', "%$s%")))
             ->when($f['division_id'] ?? null, fn ($q, $id) => $q->where('division_id', $id))
             ->when(isset($f['active']), fn ($q) => $q->where('is_active', $f['active']))
             ->orderBy('name')->orderBy('id')->paginate(15)->withQueryString();
@@ -28,7 +28,7 @@ class AdminMonitoringService
     public function attendanceQuery(array $f)
     {
         return AttendanceRecord::with('employee.division')
-            ->when($f['q'] ?? null, fn ($q, $s) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%"))))
+            ->when($f['q'] ?? null, fn ($q, $s) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%")->orWhere('business_id', 'like', "%$s%"))))
             ->when($f['division_id'] ?? null, fn ($q, $id) => $q->whereHas('employee', fn ($q) => $q->where('division_id', $id)))
             ->when($f['from'] ?? null, fn ($q, $d) => $q->whereDate('attendance_date', '>=', $d))
             ->when($f['to'] ?? null, fn ($q, $d) => $q->whereDate('attendance_date', '<=', $d))

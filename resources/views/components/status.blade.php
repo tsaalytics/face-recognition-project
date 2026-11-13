@@ -1,6 +1,11 @@
 @props(['value'])
 @php
 $labels=['pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected','present'=>'Hadir','late'=>'Terlambat','leave'=>'Izin','absent'=>'Tidak hadir','active'=>'Aktif','inactive'=>'Nonaktif'];
-$positive=in_array($value,['present','active']);
+$tone=match($value) {
+ 'present','active','approved'=>'bg-emerald-50 text-emerald-800',
+ 'late','pending'=>'bg-amber-50 text-amber-800',
+ 'rejected','absent','inactive'=>'bg-rose-50 text-rose-800',
+ default=>'bg-lavender text-purple',
+};
 @endphp
-<span @class(['inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold','bg-emerald-50 text-emerald-800'=>$positive,'bg-amber-50 text-amber-800'=>$value==='late','bg-lavender text-purple'=>!$positive && $value!=='late'])>{{ $labels[$value] ?? $value }}</span>
+<span class="inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $tone }}">{{ $labels[$value] ?? $value }}</span>

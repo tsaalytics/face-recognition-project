@@ -23,7 +23,7 @@ class EmployeeController extends Controller
 
     private function form(Employee $employee)
     {
-        $accounts = User::where('role', 'employee')->where(fn ($q) => $q->where('is_active', true)->when($employee->user_id, fn ($q, $id) => $q->orWhere('id', $id)))->where(function ($q) use ($employee) {
+        $accounts = User::whereIn('role', ['employee', 'hr'])->where(fn ($q) => $q->where('is_active', true)->when($employee->user_id, fn ($q, $id) => $q->orWhere('id', $id)))->where(function ($q) use ($employee) {
             $q->whereDoesntHave('employee');
             if ($employee->user_id) {
                 $q->orWhere('id', $employee->user_id);

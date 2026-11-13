@@ -18,7 +18,7 @@ class ApprovalController extends Controller
         $f = $request->validated();
         $requests = $model::with('employee.division')
             ->when($f['status'] ?? null, fn ($q, $s) => $q->where('status', $s))
-            ->when($f['q'] ?? null, fn ($q, $s) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%"))))
+            ->when($f['q'] ?? null, fn ($q, $s) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%")->orWhere('business_id', 'like', "%$s%"))))
             ->orderByDesc('submitted_at')->orderByDesc('id')->paginate(15)->withQueryString();
 
         return view('hr.approvals.index', compact('requests', 'kind'));

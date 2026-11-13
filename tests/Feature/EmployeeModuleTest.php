@@ -24,6 +24,7 @@ class EmployeeModuleTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-11 12:00:00'));
         Storage::fake('local');
         $this->seed();
+        AttendanceCorrectionRequest::first()->forceFill(['attendance_date' => today()->subDay(), 'submitted_at' => today()->subDay()->setTime(8, 0)])->save();
     }
 
     private function user(string $role = 'employee'): User
@@ -118,14 +119,18 @@ class EmployeeModuleTest extends TestCase
         $this->assertDatabaseCount('attendance_correction_requests', 1);
     }
 
-    public function test_stale_future_or_invalid_times_are_rejected(): void
+    public function test_capture_timestamp_validation_and_forged_attendance_times_are_ignored(): void
     {
+
         $this->actingAs($this->user());
         $this->post('/employee/corrections', $this->correctionData(['captured_at' => now()->subMinutes(20)->toIso8601String()]))->assertSessionHasErrors('captured_at');
         $this->post('/employee/corrections', $this->correctionData(['captured_at' => now()->addHour()->toIso8601String()]))->assertSessionHasErrors('captured_at');
-        $this->post('/employee/corrections', $this->correctionData(['attendance_date' => today()->addDay()->toDateString()]))->assertSessionHasErrors('attendance_date');
-        $this->post('/employee/corrections', $this->correctionData(['attendance_date' => today()->toDateString(), 'time' => '13:00']))->assertSessionHasErrors('time');
-        $this->assertSame([], Storage::disk('local')->allFiles('corrections'));
+        $this->post('/employee/corrections', $this->correctionData(['attendance_date' => '2000-01-01', 'time' => '01:00', 'submitted_at' => '2000-01-01', 'requested_at' => '2000-01-01']))->assertRedirect();
+        $r = AttendanceCorrectionRequest::latest('id')->first();
+        $this->assertTrue($r->submitted_at->equalTo(now()));
+        $this->assertTrue($r->requested_at->equalTo(now()));
+        $this->assertSame(today()->toDateString(), $r->attendance_date->toDateString());
+
     }
 
     public function test_duplicate_pending_correction_is_rejected_without_extra_file(): void
@@ -146,7 +151,7 @@ class EmployeeModuleTest extends TestCase
         $this->actingAs($employee)->get('/employee/corrections/'.$r->id)->assertOk()->assertSee('approved')->assertSee('Checked employee context')->assertDontSee('Simpan keputusan');
         $this->get('/employee/corrections/'.$r->id.'/evidence')->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $date = $r->attendance_date->toDateString();
-        $this->get('/employee/attendance?from='.$date.'&to='.$date)->assertViewHas('records', fn ($rows) => $rows->total() === 1 && $rows->first()->source === 'hr_approved');
+        $this->get('/employee/attendance?from='.$date.'&to='.$date)->assertViewHas('records', fn ($rows) => $rows->total() === 1 && $rows->first()->source === 'hr_approved_correction');
     }
 
     public function test_unlinked_or_inactive_profile_can_read_empty_history_but_cannot_submit(): void
@@ -198,8 +203,8 @@ class EmployeeModuleTest extends TestCase
     public function test_approved_leave_blocks_new_correction_and_request_filtering_works(): void
     {
         $r = LeaveRequest::first();
-        $r->start_date = today()->subDays(2);
-        $r->end_date = today()->subDays(2);
+        $r->start_date = today();
+        $r->end_date = today();
         $r->status = 'approved';
         $r->save();
         $this->actingAs($this->user())->post('/employee/corrections', $this->correctionData(['attendance_date' => $r->start_date->toDateString()]))->assertSessionHasErrors('attendance_date');
@@ -232,7 +237,7 @@ class EmployeeModuleTest extends TestCase
         $this->actingAs($this->user())->post('/employee/corrections', $this->correctionData(['captured_at' => now()->utc()->toIso8601String()]))->assertRedirect();
         $r = AttendanceCorrectionRequest::latest('id')->first();
         $this->assertSame('12:00:00', $r->captured_at->format('H:i:s'));
-        $this->assertSame('08:00:00', $r->requested_at->format('H:i:s'));
+        $this->assertSame('12:00:00', $r->requested_at->format('H:i:s'));
     }
 
     public function test_owner_pagination_preserves_filters_and_no_attachment_is_404(): void
@@ -243,7 +248,7 @@ class EmployeeModuleTest extends TestCase
             $r->employee_id = $owner->id;
             $r->save();
         }
-        $this->actingAs($this->user())->get('/employee/corrections?status=pending&page=2')->assertOk()->assertViewHas('requests',fn ($rows) => $rows->total() === 18 && $rows->currentPage() === 2)->assertSee('status=pending',false);
+        $this->actingAs($this->user())->get('/employee/corrections?status=pending&page=2')->assertOk()->assertViewHas('requests', fn ($rows) => $rows->total() === 18 && $rows->currentPage() === 2)->assertSee('status=pending', false);
         $this->get('/employee/leaves/'.LeaveRequest::first()->id.'/attachment')->assertNotFound();
     }
 }

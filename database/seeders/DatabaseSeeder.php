@@ -9,6 +9,7 @@ use App\Models\Division;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Services\EmployeeIdGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,18 +24,27 @@ class DatabaseSeeder extends Seeder
         DB::transaction(function () {
             foreach (['admin' => Role::Admin, 'hr' => Role::Hr, 'employee' => Role::Employee] as $name => $role) {
                 $u = User::firstOrNew(['email' => $name.'@facetrack.test']);
-                $u->forceFill(['name' => 'Demo '.ucfirst($name), 'password' => 'DemoFaceTrack!2026', 'role' => $role, 'is_active' => true])->save();
+                if (! $u->exists) {
+                    $u->forceFill(['name' => 'Demo '.ucfirst($name), 'password' => 'DemoFaceTrack!2026', 'role' => $role, 'is_active' => true, 'account_status' => 'active', 'activated_at' => now()])->save();
+                }
             }
             $divisions = [];
             foreach (['Produksi', 'Quality Assurance', 'Logistik'] as $name) {
                 $divisions[] = Division::firstOrCreate(['name' => $name]);
             }
             for ($i = 1; $i <= 6; $i++) {
-                $employee = Employee::updateOrCreate(['employee_number' => sprintf('DEMO-%03d', $i)], [
+                $employee = Employee::firstOrCreate(['employee_number' => sprintf('DEMO-%03d', $i)], [
                     'user_id' => $i === 1 ? User::where('email', 'employee@facetrack.test')->first()->id : null,
                     'division_id' => $divisions[($i - 1) % 3]->id, 'name' => 'Karyawan Demo '.$i, 'email' => 'demo'.$i.'@facetrack.test',
                     'position' => 'Operator Demo', 'is_active' => true,
                 ]);
+                if (! $employee->date_of_birth && $employee->wasRecentlyCreated) {
+                    $employee->date_of_birth = '2000-01-'.sprintf('%02d', $i);
+                    $employee->home_address = 'Alamat sintetis demo '.$i;
+                    $employee->phone = '08000000'.sprintf('%02d', $i);
+                    $employee->business_id = app(EmployeeIdGenerator::class)->generate($employee->date_of_birth->toDateString());
+                    $employee->save();
+                }
                 $this->upsertDate(AttendanceRecord::class, ['employee_id' => $employee->id, 'attendance_date' => today()->subDay()->toDateString(), 'session' => 'regular'], [
                     'check_in_at' => today()->subDay()->setTime(8, $i === 2 ? 15 : 0), 'check_out_at' => today()->subDay()->setTime(17, 0),
                     'status' => $i === 2 ? 'late' : 'present', 'source' => 'seed_fixture',
@@ -64,6 +74,8 @@ class DatabaseSeeder extends Seeder
             }
         }
         $record = $query->first() ?? new $model;
-        $record->fill([...$identity, ...$values])->save();
+        if (! $record->exists) {
+            $record->fill([...$identity, ...$values])->save();
+        }
     }
 }

@@ -17,7 +17,7 @@ class User extends Authenticatable
 
     protected function casts(): array
     {
-        return ['email_verified_at' => 'datetime', 'password' => 'hashed', 'role' => Role::class, 'is_active' => 'boolean'];
+        return ['email_verified_at' => 'datetime', 'password' => 'hashed', 'role' => Role::class, 'is_active' => 'boolean', 'activated_at' => 'datetime', 'invitation_sent_at' => 'datetime'];
     }
 
     public function employee()

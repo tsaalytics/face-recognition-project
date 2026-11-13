@@ -1,227 +1,154 @@
 # FaceTrack AI
 
-Sistem absensi karyawan berbasis Laravel 13, PHP 8.3, Blade, Tailwind CSS 4,
-Vite dan MySQL. Implementasi saat ini: **Phase 4 - Employee Module**.
+Laravel 13 / PHP 8.3, Blade + Tailwind 4, Vite, MySQL.
+Modul Admin, HR dan Employee tersedia. AI/face recognition belum diaktifkan.
 
-## Yang tersedia
-- Login/logout session Laravel, CSRF, validasi dan rate limit login.
-- Role Admin, HR, Employee; role middleware, pencabutan sesi akun nonaktif.
-- Policies kepemilikan data, HR-only approval permission, Admin attendance read-only.
-- Tujuh tabel domain, foreign keys, indeks unik employee/date/session.
-- Models/relasi, seed sintetis berulang, kontrak AI yang nonaktif.
-- Login dan beranda role bertema purple/magenta; aset lokal melalui Vite.
+Dokumen ini menjelaskan perilaku **setelah Employee & Invitation Refinement**.
+Laporan phase-1/2/3/4 di docs adalah catatan historis, bukan spesifikasi terbaru.
 
-Phase 2 menambahkan dashboard Admin, pembuatan/edit/nonaktif/aktif akun HR dan Employee,
-perubahan role, direktori karyawan dan monitoring absensi dengan filter serta pagination.
-
-Phase 3 menambahkan dashboard HR, CRUD profil, monitoring/export CSV, halaman
-enrollment nonaktif, detail bukti privat dan keputusan koreksi/izin dengan audit.
-
-Phase 4 menambahkan absensi pribadi, form koreksi dengan kamera/geolocation,
-form izin dan upload privat, riwayat keputusan, serta akses bukti milik sendiri.
-
-Belum tersedia: integrasi AI, shift lintas tengah malam, saldo cuti, kalender kerja,
-pembatalan keputusan dan QA visual menyeluruh (Phase 5).
-Tidak ada data pribadi/biometrik nyata. Foto demo hanyalah berkas teks berlabel sintetis;
-koordinat 0,0 pada fixture bukan lokasi perangkat dan tidak boleh dipakai sebagai bukti.
-
-## Persyaratan
-PHP >=8.3 dengan pdo_mysql, mbstring, openssl, fileinfo, xml, curl dan zip;
-Composer 2; Node 22.11+ dan npm; MySQL lokal.
-Pengujian terisolasi menggunakan pdo_sqlite.
-Vite 6 + laravel-vite-plugin 1 dipilih agar kompatibel Node lokal 22.11.
-Dependency PHP/JS dikunci dalam composer.lock dan package-lock.json.
-MySQL 5.7 lokal bersifat legacy; gunakan MySQL 8 pada lingkungan baru.
-
-## Instalasi (PowerShell)
-Jalankan dari direktori proyek:
+## Instalasi baru
+PHP >=8.3 (pdo_mysql, pdo_sqlite untuk tes, GD, mbstring, fileinfo, XML, curl, zip),
+Composer 2, Node 22.11+ dan npm. Aset memakai Vite 6 yang kompatibel Node lokal.
+Buat database MySQL kosong khusus aplikasi (disarankan MySQL 8 untuk lingkungan baru).
 
 ```powershell
 composer install
 Copy-Item .env.example .env
 php artisan key:generate
 npm.cmd ci
-npm.cmd run build
 ```
 
-Buat database kosong khusus aplikasi, jangan gunakan database aplikasi lain:
-
-```sql
-CREATE DATABASE facetrack_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Atur .env: APP_ENV=local, APP_URL=http://127.0.0.1:8000, DB_CONNECTION=mysql,
-DB_HOST=127.0.0.1, DB_PORT=3306, DB_DATABASE=facetrack_ai, DB_USERNAME,
-DB_PASSWORD sesuai MySQL Anda. Jangan commit .env atau credential asli.
-
-```powershell
-php artisan migrate
-php artisan db:seed
-php artisan serve --host=127.0.0.1 --port=8000
-```
-
-Buka http://127.0.0.1:8000/login. Untuk perubahan aset, jalankan
-npm.cmd run dev di terminal kedua. Build produksi tidak memerlukan server Vite.
-Jangan menjalankan migrate:fresh pada database yang berisi data penting.
-Jangan jalankan composer setup pada database yang belum disiapkan.
-
-## Akun demo (khusus local/testing)
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@facetrack.test | DemoFaceTrack!2026 |
-| HR | hr@facetrack.test | DemoFaceTrack!2026 |
-| Employee | employee@facetrack.test | DemoFaceTrack!2026 |
-
-Seeder hanya berjalan di local/testing, mengembalikan password/status akun demo
-pada setiap eksekusi, dan tidak boleh dipakai dengan data produksi.
-Enam profil, tiga divisi, enam absensi bertanda seed_fixture,
-satu koreksi pending dan satu cuti pending disediakan untuk pengujian berikutnya.
-Tidak ada absensi yang mengaku bersumber face recognition.
-Berkas bukti privat berada di storage/app/private; tidak perlu storage:link.
-Bukti privat tersedia bagi HR melalui rute HR dan pemilik melalui rute Employee; Admin tidak memiliki endpoint bukti.
-
-## Pengujian
-```powershell
-php artisan test
-php artisan migrate:status
-npm.cmd run build
-```
-
-PHPUnit memakai SQLite in-memory, cache/session array, dan tidak menghapus data MySQL.
-Lihat [rancangan dan aturan fase berikutnya](docs/architecture.md).
-Laporan Phase 1: docs/verification.md. Phase 2: docs/phase-2.md. Phase 3: docs/phase-3.md. Phase 4: docs/phase-4.md.
-
-
-## Modul Admin (Phase 2)
-Masuk sebagai admin@facetrack.test dan buka /admin.
-- Dashboard: total semua profil karyawan, hadir hari ini (karyawan aktif unik
-  dengan check-in berstatus present/late), belum hadir (aktif minus hadir),
-  dan total akun termasuk nonaktif. Belum hadir bukan keputusan absen final.
-- /admin/users: pencarian nama/email, filter role/status, pagination 15 baris.
-  Tambah akun HR/Employee, edit nama/email/role/status, reset password opsional.
-  Password minimal 12 karakter dengan huruf besar/kecil, angka dan simbol.
-- Akun Admin dilindungi dari perubahan melalui modul ini. Akun Employee yang
-  sudah memiliki profil tidak dapat diubah menjadi HR sebelum tautan profil dilepas HR.
-- Perubahan email, role, status atau password merotasi remember token dan
-  menghapus sesi pengguna jika SESSION_DRIVER=database (konfigurasi lokal).
-  Tidak ada penghapusan akun permanen.
-- /admin/employees: semua profil, pencarian nama/NIK/email, filter divisi/status.
-- /admin/attendance: semua riwayat, pencarian nama/NIK, filter rentang tanggal,
-  divisi dan status. Sumber seed_fixture jelas ditampilkan sebagai data demo sintetis.
-- Karyawan tanpa catatan tidak otomatis diberi baris absent.
-  Tidak ada endpoint edit/hapus/approval attendance untuk Admin.
-- Profil karyawan, approval dan export kini tersedia pada Phase 3 (lihat di bawah).
-
-Tidak ada migration baru di Phase 2. Untuk instalasi Phase 1 yang sudah berjalan:
-npm.cmd ci, npm.cmd run build, php artisan optimize:clear, lalu php artisan serve.
-Jangan seed ulang database yang telah Anda kelola melalui Admin: seeder demo akan
-mengembalikan data akun contoh, sebagaimana dijelaskan di atas.
-
-
-## Modul HR (Phase 3)
-Upgrade dari Phase 2:
+Atur .env: DB_CONNECTION=mysql, DB_HOST, DB_PORT, DB_DATABASE=facetrack_ai,
+DB_USERNAME dan DB_PASSWORD sesuai environment; APP_URL=http://127.0.0.1:8000.
+Lalu:
 
 ```powershell
 php artisan migrate
 npm.cmd run build
-php artisan optimize:clear
 php artisan serve
 ```
 
-Migrasi baru hanya menambahkan indeks unik keputusan di approval_logs.
-Database lokal pada sesi pengembangan ini sudah dimigrasikan. Tidak perlu seed ulang.
-Login hr@facetrack.test / DemoFaceTrack!2026, lalu buka /hr.
+Untuk database demo kosong dengan APP_ENV=local saja: php artisan db:seed.
+Akun contoh admin@facetrack.test / hr@facetrack.test / employee@facetrack.test,
+password DemoFaceTrack!2026. Seeder tidak boleh dipakai untuk provisioning produksi.
+Admin pertama di database non-demo: php artisan admin:bootstrap admin@example.com
+(--name opsional); password diminta secara tersembunyi. Tidak ada registrasi publik.
 
-- Dashboard: karyawan aktif, hadir/terlambat/belum hadir, tren 7 hari,
-  statistik divisi, serta jumlah/link koreksi dan izin pending.
-- Profil: tambah/edit NIK, kontak, divisi, jabatan, status, serta hubungkan/lepas
-  akun Employee yang dibuat Admin. Akun baru harus aktif dan belum dipakai;
-  tautan akun nonaktif yang sudah ada dapat dipertahankan.
-- Monitoring: filter nama/NIK, tanggal, divisi, status, pagination dan CSV
-  yang mencakup seluruh hasil filter, bukan hanya halaman aktif.
-- /hr/enrollment hanya menampilkan status; AI tetap nonaktif.
-- /hr/corrections dan /hr/leaves menampilkan daftar, detail, bukti privat,
-  status dan riwayat keputusan. Reject wajib memiliki catatan.
-- Approval final sekali saja, tidak dapat diubah/dibatalkan melalui aplikasi.
-  HR tidak boleh menilai permohonan miliknya sendiri.
-- Persetujuan koreksi membuat/memperbarui sesi regular dengan sumber hr_approved.
-  Check-out memerlukan check-in; jam pulang tidak boleh lebih awal.
-  Tanggal/waktu harus sesuai hari yang sama dan tidak di masa depan.
-  Terlambat dihitung berdasarkan config/attendance.php (08:00, toleransi 0 menit).
-- Persetujuan izin membuat status leave pada sesi regular setiap tanggal,
-  termasuk akhir pekan. Belum ada kalender hari kerja/libur atau saldo cuti.
-  Rentang maksimum 366 hari. Konflik dengan hadir atau izin approved lain
-  menghasilkan error dan tidak menyimpan keputusan parsial.
-- Keputusan menulis reviewer, timestamp server, transisi dan catatan ke approval_logs.
-  Bukti/foto, GPS dan timestamp perangkat tetap memerlukan penilaian manusia.
-- CSV memakai UTF-8 BOM, escaping sel formula, dan label data demo.
-- Berkas private hanya diberikan lewat rute HR berotorisasi dan MIME allowlist.
-  Foto koreksi non-demo maksimal 5 MB (JPEG/PNG/WebP).
-- Fixture koreksi Phase 1 tetap berupa teks berlabel demo, bukan foto kamera.
-  Setelah HR menyetujui fixture ini, sumber hr_approved berarti keputusan HR
-  atas contoh sintetis, bukan hasil AI.
+## Upgrade database existing tanpa kehilangan data
+Backup database dahulu. Jalankan **php artisan migrate**, bukan migrate:fresh/reset.
+Migrasi 000003 menambah kolom dan memperluas tipe source; tidak mengganti primary
+key/NIK, menghapus record atau mengubah password pengguna lama.
+Migrasi lokal pada sesi refinement sudah dijalankan; tidak perlu seed ulang.
 
-Form pengajuan Employee dan pengambilan kamera/lokasi kini tersedia pada Phase 4.
-Jangan menjalankan db:seed setelah menilai demo: seeder Phase 1 dirancang untuk
-data contoh awal dan dapat mengembalikan status fixture.
+- employees.employee_number tetap **NIK** legacy yang unik.
+- employees.business_id: string 12 digit unik, empat angka random_int(0,9999)
+  dengan leading zero + tanggal lahir YYYYMMDD; backend-generated dan read-only.
+- date_of_birth dan home_address ditambahkan nullable demi kompatibilitas data lama.
+  Form HR baru/edit mewajibkan nama, NIK, tanggal lahir, alamat, divisi, email,
+  telepon string dan jabatan; ID yang sudah terbit tetap meski tanggal lahir berubah.
+- Profil lama tanpa tanggal lahir tetap tanpa ID, tidak diisi tanggal lahir palsu.
+  Lengkapi data melalui HR. Save profil akan menerbitkan ID yang masih kosong.
+- Backfill hanya menerbitkan ID pada profil yang memiliki tanggal lahir:
 
+```powershell
+php artisan employees:backfill-ids --dry-run
+php artisan employees:backfill-ids
+```
 
-## Modul Employee (Phase 4)
-Tidak ada migrasi baru. Jalankan npm.cmd run build, php artisan optimize:clear,
-lalu php artisan serve. Jangan seed ulang.
-Login employee@facetrack.test / DemoFaceTrack!2026 dan buka /employee.
+Perintah dapat diulang tanpa mengganti ID. PK internal dan foreign key tetap sama.
+Pada audit lokal: enam profil belum memiliki tanggal lahir, sehingga dry-run eligible=0.
 
-- /employee/attendance: riwayat sendiri, jam masuk/pulang/status/sumber,
-  filter tanggal dan pagination. Hari tanpa record tidak disimpulkan absent.
-- /employee/corrections: status/history sendiri; tombol pengajuan hanya muncul
-  bila profil terhubung dan aktif.
-- Form koreksi: Check In/Out, tanggal dan waktu yang dimohonkan (Asia/Jakarta),
-  alasan, consent, foto dari getUserMedia/canvas, lokasi dari Geolocation API.
-  Tidak ada file picker foto atau fallback koordinat otomatis.
-- Centang consent, buka kamera, ambil foto, lalu ambil lokasi. Memulai ulang kamera
-  menghapus bukti/lokasi sebelumnya. Kamera berhenti setelah foto diambil,
-  saat consent dicabut, atau halaman ditinggalkan.
-- Jika izin ditolak/tidak didukung, tampil penjelasan dan alternatif melalui HR;
-  data tidak dikirim tanpa foto/lokasi/consent.
-- Foto JPEG/PNG/WebP maksimal 5 MB dan 4096x4096, timestamp perangkat maksimum
-  15 menit lalu dengan toleransi jam maju 5 menit. Waktu harus benar;
-  foto/GPS/timestamp tidak membuktikan identitas dan dapat dimanipulasi.
-  Server tidak mengklaim dapat memverifikasi bahwa upload benar-benar live.
-- Form mengirim multipart dengan CSRF melalui fetch; validasi error tidak
-  mengunggah ulang otomatis. Jika jaringan tidak jelas, periksa daftar sebelum retry.
-- Request pending duplikat pada tanggal/session/type yang sama ditolak.
-  Belum ada pembatalan/edit permohonan; hubungi HR jika ada kesalahan.
-- /employee/leaves: pengajuan izin/sakit/cuti, rentang hari, alasan,
-  attachment opsional PDF/JPEG/PNG/WebP maksimal 5 MB.
-- ID karyawan, status pending, is_demo=false, sesi regular, submitted_at dan
-  path berkas ditetapkan server. Request tidak membuat attendance sebelum approval HR.
-- Detail sendiri menampilkan koordinat/link peta, bukti privat dan catatan HR.
-  Employee tidak dapat membuka request/berkas karyawan lain atau mengambil keputusan.
-- Profil belum terhubung: history kosong dan pengajuan ditolak.
-  Profil nonaktif: history sendiri tetap tersedia, pengajuan baru ditolak.
-- Berkas disimpan di storage/app/private/corrections atau leaves.
-  Gagal menyimpan request membersihkan berkas yang baru dibuat.
-- Submission dibatasi 10 per menit dan menggunakan lock profil untuk pemeriksaan
-  pending/overlap, berbagi lock yang digunakan approval HR.
+## Hak akses
+- Admin: dashboard, invitation/role/status akun, direktori karyawan, monitoring
+  absensi read-only dengan filter/pagination. Akun Admin tidak dapat diedit
+  melalui form biasa; Admin tidak mengatur password pengguna.
+- HR: dashboard/tren/divisi/pending, tambah/edit profil, monitoring dan CSV,
+  enrollment placeholder, detail bukti privat, approve/reject koreksi/izin.
+- Employee: riwayat milik sendiri, pengajuan koreksi/izin, status dan bukti sendiri.
+  Data/berkas orang lain tidak dapat diakses.
+- Pengubahan email profil tertaut oleh HR menyinkronkan email login dan mencabut
+  token/sesi lama. Undangan pending ke email lama harus dikirim ulang.
+- Linking legacy tetap tersedia bagi HR dengan email akun yang sesuai; akun
+  baru dibuat oleh Admin melalui invitation. Profil lama yang email/relasinya
+  tidak konsisten memerlukan peninjauan, tidak ditautkan otomatis.
 
-### Menjalankan kamera/lokasi
-Gunakan http://127.0.0.1:8000 atau http://localhost:8000 di komputer yang menjalankan
-aplikasi. Untuk telepon/perangkat lain, gunakan hosting HTTPS dengan sertifikat valid;
-alamat HTTP LAN biasa umumnya tidak menyediakan secure context untuk sensor.
-Jangan menonaktifkan keamanan browser. Izinkan kamera/lokasi hanya bila bersedia.
+## Invitation dan aktivasi
+1. HR melengkapi profil aktif sampai ID Karyawan diterbitkan.
+2. Admin -> Akun pengguna -> Tambah akun: cari ID/nama, pilih karyawan,
+   email otomatis read-only, pilih HR/Employee, Send Invitation.
+3. Backend membaca ulang profil, memastikan aktif/tidak tertaut/email tersedia.
+   Akun dibuat Pending Activation, tidak dapat login.
+4. Penerima membuka Set Your Password, menentukan password sendiri.
+   Minimal 12 karakter, huruf besar/kecil, angka dan simbol.
+5. Token Password Broker tersimpan sebagai hash, berlaku 60 menit, sekali pakai.
+   Aktivasi atomik mengonsumsi token, menyimpan hash password, mengaktifkan akun.
+6. Admin dapat resend untuk Pending Activation setelah 60 detik; token lama gugur.
+   Resend juga dibatasi 5 request/menit; form aktivasi dibatasi 10/menit.
+7. Status akun: pending_activation / active / disabled, disinkronkan dengan
+   is_active untuk kompatibilitas. Admin tidak bisa melewati proses set-password
+   dengan mengubah akun pending langsung menjadi active.
+8. Jika transport email gagal, akun tetap pending, UI menunjukkan kegagalan dan
+   Admin dapat resend setelah cooldown. invitation_sent_at menunjukkan transport
+   menerima pengiriman, bukan bukti email sampai di inbox.
 
-Batas aplikasi 5 MB. Konfigurasi PHP perlu upload_max_filesize minimal 5M dan
-post_max_size lebih besar, misalnya 8M. Environment lokal saat diperiksa sudah
-mendukung upload di atas batas aplikasi; php.ini tidak diubah.
+## Menguji email lokal (Mail Log)
+Environment lokal saat diperiksa memakai MAIL_MAILER=log.
+Pastikan .env:
 
-### Tes tambahan
+```dotenv
+MAIL_MAILER=log
+APP_URL=http://127.0.0.1:8000
+```
+
+Jalankan php artisan config:clear, buat invitation dari Admin, lalu buka
+storage/logs/laravel.log dan cari email terbaru berjudul FaceTrack AI - Set Your Password.
+Tautan ada di isi email log. Buka dalam private/incognito window atau logout dari
+Admin terlebih dahulu, karena halaman aktivasi ditujukan ke guest.
+Setelah mengaktifkan akun, coba login dan gunakan kembali link: harus ditolak.
+Mail log tidak mengirim ke inbox sungguhan. Token di log bersifat rahasia;
+.env, *.log dan .local-backups diabaikan Git. SMTP riil belum diuji.
+
+## Koreksi absensi
+- Form hanya jenis Check In/Out, alasan, consent, kamera dan lokasi.
+  **Tidak ada input manual tanggal/jam absensi.**
+- Waktu absensi koreksi = waktu server saat pengajuan diterima.
+  attendance_date, requested_at dan submitted_at ditetapkan dari instant yang sama.
+  Input API bernama tanggal/jam/submitted_at tidak dipercaya.
+- HR menyetujui memakai submitted_at, bukan waktu approval. reviewed_at terpisah.
+  Source: hr_approved_correction. Reject tidak mengubah attendance.
+- requested_at lama tetap disimpan untuk riwayat; pending lama yang ditinjau
+  setelah upgrade memakai submitted_at sesuai aturan baru.
+- Foto/captured_at/GPS hanya bukti pendukung, bukan verifikasi identitas.
+  Timestamp pengambilan perangkat berbeda dari timestamp absensi server.
+- Kamera canvas/getUserMedia dan Geolocation diminta setelah consent dan aksi.
+  Jika ditolak, tidak ada data palsu; hubungi HR untuk alternatif.
+- Gunakan localhost/127.0.0.1 atau HTTPS valid. HTTP LAN biasa tidak memenuhi
+  secure context untuk sensor. Foto/GPS fisik belum diverifikasi oleh tes browser.
+- Foto JPEG/PNG/WebP maksimal 5 MB dan 4096x4096; capture maksimal 15 menit lalu
+  dengan toleransi jam maju 5 menit. Berkas hanya di storage/app/private.
+- Satu koreksi pending per tanggal/sesi/jenis; lock Employee dipakai bersama
+  service submit dan approval. Tidak ada absensi otomatis atau hasil AI simulasi.
+- Check-out memerlukan check-in; sesi regular pada hari yang sama saja.
+
+## Izin dan laporan
+Izin/sakit/cuti dengan rentang tanggal, alasan, dokumen opsional PDF/JPEG/PNG/WebP
+maksimal 5 MB. Pending/approved overlap atau konflik hadir ditolak.
+Approve HR membuat leave tiap hari rentang, termasuk akhir pekan, maksimum 366 hari.
+Belum ada kalender kerja/libur, saldo cuti atau undo keputusan.
+CSV HR mencakup seluruh hasil filter dan menetralkan formula injection.
+Status belum hadir di dashboard bukan keputusan absen final.
+
+## Tes
 ```powershell
 php artisan test
 npm.cmd run test:js
 npm.cmd run build
 ```
 
-Tes JavaScript memakai mock DOM/API kamera/lokasi, bukan perangkat fisik.
-Uji manual yang belum dilakukan: grant/deny kamera/GPS nyata, browser mobile,
-revoke permission pada pengaturan browser, foto/perangkat nyata dan QA visual.
-Tidak ada AI yang dijalankan.
+PHPUnit memakai SQLite in-memory dan Mail::fake, tidak reset database MySQL.
+Tes JavaScript memakai mock sensor/DOM, bukan perangkat fisik.
+Laporan terbaru, daftar file dan hasil migrasi: [docs/refinement.md](docs/refinement.md).
+Status UI, hasil QA dan checklist browser/perangkat: [docs/phase-5.md](docs/phase-5.md).
+
+## Troubleshooting email/lokasi
+Lihat [Gmail SMTP dan lokasi perangkat](docs/email-location-troubleshooting.md).
