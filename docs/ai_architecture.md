@@ -1,7 +1,7 @@
 # Phase 6.1 — Audit dan setup AI service
 
 Catatan terbaru: [HR enrollment Phase 6.3](phase-6-3.md) sudah diimplementasikan;
-attendance recognition belum aktif. Engine ekstraksi Phase 6.2 sudah tersedia. Lihat
+kiosk attendance [Phase 6.4](phase-6-4.md) tersedia dengan threshold wajib. Engine ekstraksi Phase 6.2 sudah tersedia. Lihat
 [Phase 6.2](phase-6-2.md) untuk kontrak endpoint, tes dan batas verifikasi terkini.
 Bagian 6.1 di bawah adalah catatan historis setup.
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Employee\PortalController;
 use App\Http\Controllers\Hr\ApprovalController;
 use App\Http\Controllers\Hr\EmployeeController;
+use App\Http\Controllers\Hr\FaceAttendanceController;
 use App\Http\Controllers\Hr\FaceEnrollmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 });
 
 Route::prefix('hr')->name('hr.')->middleware(['auth', 'role:hr'])->group(function () {
+    Route::get('/kiosk', [FaceAttendanceController::class, 'show'])->name('kiosk');
+    Route::post('/kiosk/start', [FaceAttendanceController::class, 'start'])->middleware('throttle:5,1')->name('kiosk.start');
+    Route::post('/kiosk/stop', [FaceAttendanceController::class, 'stop'])->name('kiosk.stop');
+    Route::post('/kiosk/scan', [FaceAttendanceController::class, 'store'])->middleware('throttle:10,1')->name('kiosk.scan');
     Route::get('/', [App\Http\Controllers\Hr\MonitoringController::class, 'dashboard'])->name('home');
     Route::resource('employees', EmployeeController::class)->except(['show', 'destroy']);
     Route::get('/employees/{employee}/face', [FaceEnrollmentController::class, 'show'])->name('faces.show');

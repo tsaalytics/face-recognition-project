@@ -11,6 +11,6 @@
 <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="remember" value="1" class="accent-magenta"> Ingat saya</label>
 <button data-submit-button class="w-full rounded-xl bg-magenta px-5 py-3 font-semibold text-white hover:opacity-90 disabled:opacity-60">Masuk</button>
 </form>
-<p class="mt-6 text-xs leading-5 text-slate-500">Pendaftaran akun dikelola Admin. Pengenalan wajah belum tersedia pada fase ini.</p>
+<p class="mt-6 text-xs leading-5 text-slate-500">Pendaftaran akun dikelola Admin. Kiosk pengenalan wajah dikelola HR.</p>
 </div>
 </x-layout>

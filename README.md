@@ -161,11 +161,11 @@ Lihat [audit, instalasi dan verifikasi AI](docs/ai_architecture.md) serta
 
 Phase 6.2 menambahkan endpoint ekstraksi embedding internal dan utility cosine matching
 Laravel. Lihat [implementasi dan pengujian Phase 6.2](docs/phase-6-2.md).
-Enrollment web tersedia sejak Phase 6.3; attendance recognition menunggu Phase 6.4.
+Enrollment web tersedia sejak Phase 6.3; kiosk absensi HR tersedia pada [Phase 6.4](docs/phase-6-4.md), dengan threshold wajib dikonfigurasi.
 
 ## Phase 6.3 — HR face enrollment
 HR dapat Register Face, Re-enroll, dan Delete Enrollment melalui Karyawan -> Kelola
 enrollment. Sampel kamera sementara diteruskan ke Python; hanya embedding terenkripsi
 dan metadata disimpan. Migrasi 000004 menambah tabel embedding/audit serta versi
-enrollment tanpa mengganti data existing. Absensi wajah masih menunggu Phase 6.4.
+enrollment tanpa mengganti data existing. Absensi wajah melalui kiosk HR dijelaskan pada [Phase 6.4](docs/phase-6-4.md).
 Lihat [cara menjalankan, privasi dan hasil tes](docs/phase-6-3.md).
