@@ -1,7 +1,7 @@
 @props(['title' => 'FaceTrack AI'])
 <!DOCTYPE html>
 <html lang="id">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>{{ $title }} / FaceTrack AI</title>@vite(['resources/css/app.css','resources/js/app.js'])</head>
+<head><x-favicon/><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>{{ $title }} / FaceTrack AI</title>@vite(['resources/css/app.css','resources/js/app.js'])</head>
 <body class="workspace-page text-slate-800 antialiased">
 <a href="#main-content" class="skip-link">Langsung ke konten utama</a>
 <div class="workspace-shell" data-workspace>
@@ -12,7 +12,7 @@
 
 @php
 $navigation = auth()->user()->role === \App\Enums\Role::Admin
- ? ['admin.home'=>'Dashboard','admin.users.index'=>'Akun pengguna','admin.employees.index'=>'Karyawan','admin.attendance.index'=>'Riwayat absensi']
+ ? ['admin.home'=>'Dashboard','admin.users.index'=>'Akun pengguna','admin.attendance.index'=>'Riwayat absensi']
  : (auth()->user()->role === \App\Enums\Role::Hr
  ? ['hr.home'=>'Dashboard','hr.employees.index'=>'Karyawan','hr.attendance.index'=>'Riwayat absensi','hr.kiosk-devices.index'=>'Perangkat Kiosk','hr.corrections.index'=>'Approval koreksi','hr.leaves.index'=>'Pengajuan izin']
  : ['employee.home'=>'Beranda','employee.attendance.index'=>'Absensi saya','employee.corrections.index'=>'Koreksi saya','employee.leaves.index'=>'Izin saya']);
@@ -20,7 +20,7 @@ $navigation = auth()->user()->role === \App\Enums\Role::Admin
 <nav aria-label="Navigasi utama">
 @foreach($navigation as $route=>$label)
 @php($active = str_ends_with($route,'.index') ? request()->routeIs(str_replace('.index','.*',$route)) : request()->routeIs($route))
-@php($icon = str_contains($route, 'home') ? 'home' : (str_contains($route, 'employees') || str_contains($route, 'users') ? 'users' : (str_contains($route, 'attendance') ? 'calendar' : 'document')))
+@php($icon = str_contains($route, 'kiosk-devices') ? 'tablet' : (str_contains($route, 'home') ? 'home' : (str_contains($route, 'employees') || str_contains($route, 'users') ? 'users' : (str_contains($route, 'attendance') ? 'calendar' : 'document'))))
 <a href="{{ route($route) }}" @if($active) aria-current="page" @endif class="workspace-nav-link"><x-icon :name="$icon"/><span>{{ $label }}</span></a>
 @endforeach
 </nav>

@@ -38,8 +38,8 @@ Route::middleware('auth')->group(function () {
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', [MonitoringController::class, 'dashboard'])->name('home');
-    Route::get('/employees', [MonitoringController::class, 'employees'])->name('employees.index');
-    Route::get('/employees/{employee}', [MonitoringController::class, 'employee'])->name('employees.show');
+    Route::get('/employees', [MonitoringController::class, 'employees'])->middleware('can:viewAny,'.\App\Models\Employee::class)->name('employees.index');
+    Route::get('/employees/{employee}', [MonitoringController::class, 'employee'])->middleware('can:view,employee')->name('employees.show');
     Route::get('/attendance', [MonitoringController::class, 'attendance'])->name('attendance.index');
     Route::resource('users', UserController::class)->except(['show', 'destroy']);
 });

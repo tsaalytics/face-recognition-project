@@ -21,7 +21,7 @@ class CompactListsTest extends TestCase
     private function lists(): array
     {
         return [
-            'admin' => ['users' => 'users', 'employees' => 'employees', 'attendance' => 'records'],
+            'admin' => ['users' => 'users', 'attendance' => 'records'],
             'hr' => ['corrections' => 'requests', 'leaves' => 'requests'],
             'employee' => ['attendance' => 'records', 'corrections' => 'requests', 'leaves' => 'requests'],
         ];
@@ -72,12 +72,12 @@ class CompactListsTest extends TestCase
     {
         $employee = Employee::firstOrFail();
         $employee->update(['is_active' => false]);
-        foreach (['hr' => '/hr/employees', 'admin' => '/admin/employees'] as $role => $url) {
+        foreach (['hr' => '/hr/employees'] as $role => $url) {
             $this->actingAs(User::where('email', $role.'@facetrack.test')->firstOrFail());
             $this->get($url.'?active=0&per_page=5')->assertOk()
                 ->assertViewHas('employees', fn ($rows) => $rows->total() === 1 && $rows->first()->id === $employee->id)
                 ->assertSee('1 filter aktif');
         }
-        $this->get('/admin/employees')->assertDontSee('href="'.route('hr.employees.create').'"', false);
+        $this->actingAs(User::where('email', 'admin@facetrack.test')->firstOrFail())->get('/admin/employees')->assertForbidden();
     }
 }

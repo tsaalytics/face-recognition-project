@@ -45,13 +45,13 @@ class UiQualityTest extends TestCase
 
     public function test_tables_have_keyboard_scroll_regions_column_scopes_and_empty_states(): void
     {
-        foreach (['admin' => ['/admin/users', '/admin/employees', '/admin/attendance'], 'hr' => ['/hr/employees', '/hr/attendance', '/hr/corrections', '/hr/leaves'], 'employee' => ['/employee/attendance', '/employee/corrections', '/employee/leaves']] as $role => $urls) {
+        foreach (['admin' => ['/admin/users', '/admin/attendance'], 'hr' => ['/hr/employees', '/hr/attendance', '/hr/corrections', '/hr/leaves'], 'employee' => ['/employee/attendance', '/employee/corrections', '/employee/leaves']] as $role => $urls) {
             $this->actingAs($this->user($role));
             foreach ($urls as $url) {
                 $this->get($url)->assertOk()->assertSee('role="region"', false)->assertSee('tabindex="0"', false)->assertSee('scope="col"', false);
             }
         }
-        $this->actingAs($this->user('admin'))->get('/admin/employees?q=NothingMatches')->assertSee('Tidak ada karyawan yang cocok');
+        $this->actingAs($this->user('hr'))->get('/hr/employees?q=NothingMatches')->assertSee('Tidak ada karyawan yang cocok');
     }
 
     public function test_validation_summary_connects_errors_to_fields_and_preserves_safe_input(): void

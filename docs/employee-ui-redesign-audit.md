@@ -1,5 +1,9 @@
 # Employee UI redesign: audit and directory review
 
+## Current permission update
+
+Admin access to the employee directory and employee detail has been revoked. EmployeePolicy now permits listing only for HR; reading an employee is allowed for HR or an Employee viewing their own profile, never Admin. The Admin sidebar omits Karyawan. Legacy Admin employee URLs remain registered but return 403 through policy middleware and controller checks. Admin account management and attendance monitoring remain available. Historical notes below describe the earlier design phases and no longer grant Admin read access.
+
 ## Step 3: integrated profile forms (current behavior)
 
 - The employee create/edit page now provides one white card with a responsive grid, required labels, field errors, account-link options, and a reusable face-enrollment section. Profile and camera are separate, non-nested forms inside the same card.

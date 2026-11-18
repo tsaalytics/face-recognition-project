@@ -59,7 +59,7 @@ Perintah dapat diulang tanpa mengganti ID. PK internal dan foreign key tetap sam
 Pada audit lokal: enam profil belum memiliki tanggal lahir, sehingga dry-run eligible=0.
 
 ## Hak akses
-- Admin: dashboard, invitation/role/status akun, direktori karyawan, monitoring
+- Admin: dashboard, invitation/role/status akun, monitoring absensi. Direktori dan detail karyawan hanya untuk HR.
   absensi read-only dengan filter/pagination. Akun Admin tidak dapat diedit
   melalui form biasa; Admin tidak mengatur password pengguna.
 - HR: dashboard/tren/divisi/pending, tambah/edit profil, monitoring dan CSV,

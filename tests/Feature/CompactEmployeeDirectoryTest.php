@@ -60,6 +60,6 @@ class CompactEmployeeDirectoryTest extends TestCase
         $this->get('/hr/enrollment')->assertRedirect(route('hr.employees.index'));
         $this->actingAs(User::where('email', 'admin@facetrack.test')->firstOrFail());
         $this->get('/hr/employees')->assertForbidden();
-        $this->get('/admin/employees')->assertOk()->assertViewHas('employees', fn ($rows) => $rows->perPage() === 10);
+        $this->get('/admin/employees')->assertForbidden();
     }
 }

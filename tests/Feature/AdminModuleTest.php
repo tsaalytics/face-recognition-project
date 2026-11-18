@@ -36,7 +36,7 @@ class AdminModuleTest extends TestCase
 
     public function test_admin_pages_are_accessible_only_to_admin(): void
     {
-        $urls = ['/admin', '/admin/users', '/admin/users/create', '/admin/employees', '/admin/attendance', '/admin/users/'.$this->account('hr')->id.'/edit'];
+        $urls = ['/admin', '/admin/users', '/admin/users/create', '/admin/attendance', '/admin/users/'.$this->account('hr')->id.'/edit'];
         foreach ($urls as $url) {
             $this->get($url)->assertRedirect('/login');
         }
@@ -142,21 +142,24 @@ class AdminModuleTest extends TestCase
         $this->get('/admin/users?role=hr&page=2')->assertOk()->assertViewHas('users', fn ($users) => $users->currentPage() === 2 && $users->total() === 18)->assertSee('role=hr', false);
     }
 
-    public function test_employee_filters_and_empty_states(): void
+    public function test_admin_cannot_access_employee_directory_or_details_even_with_filters(): void
     {
         $employee = Employee::where('employee_number', 'DEMO-001')->firstOrFail();
-        $this->actingAs($this->account())->get('/admin/employees?q=DEMO-001&division_id='.$employee->division_id.'&active=1')->assertOk()->assertViewHas('employees', fn ($rows) => $rows->total() === 1 && $rows->first()->id === $employee->id);
-        $this->get('/admin/employees?q=NoMatchingEmployee')->assertOk()->assertSee('Tidak ada karyawan yang cocok');
-        $employee->is_active = false;
-        $employee->save();
-        $this->get('/admin/employees?active=0')->assertOk()->assertViewHas('employees', fn ($rows) => $rows->total() === 1);
+        $this->actingAs($this->account())->get('/admin/employees?q=DEMO-001&division_id='.$employee->division_id.'&active=1')->assertForbidden();
+        $this->get('/admin/employees?q=NoMatchingEmployee')->assertForbidden();
+        $this->get('/admin/employees?active=0')->assertForbidden();
+        $this->getJson('/admin/employees?division_id=invalid&per_page=999')->assertForbidden();
+        $this->get(route('admin.employees.show', $employee))->assertForbidden();
+        $this->get('/admin')->assertOk()->assertDontSee('href="'.route('admin.employees.index').'"', false);
     }
 
     public function test_attendance_filters_date_name_division_and_status(): void
     {
         $employee = Employee::where('employee_number', 'DEMO-002')->firstOrFail();
         $date = today()->subDay()->toDateString();
-        $this->actingAs($this->account())->get('/admin/attendance?'.http_build_query(['q' => 'DEMO-002', 'division_id' => $employee->division_id, 'from' => $date, 'to' => $date, 'status' => 'late']))->assertOk()->assertViewHas('records', fn ($rows) => $rows->total() === 1 && $rows->first()->employee_id === $employee->id)->assertSee('Data demo sintetis')->assertSee('Akses baca saja');
+        $this->actingAs($this->account())->get('/admin/attendance?'.http_build_query(['q' => 'DEMO-002', 'division_id' => $employee->division_id, 'from' => $date, 'to' => $date, 'status' => 'late']))->assertOk()->assertViewHas('records', fn ($rows) => $rows->total() === 1 && $rows->first()->employee_id === $employee->id)
+            ->assertSee('Data demo sintetis')->assertDontSee('Download CSV')
+            ->assertSeeInOrder(['Tanggal</th>', 'ID Karyawan</th>', 'Nama Karyawan</th>', 'Divisi</th>', 'Masuk</th>', 'Pulang</th>', 'Status</th>', 'Sumber</th>'], false);
         $this->get('/admin/attendance?from='.today()->toDateString())->assertOk()->assertSee('Tidak ada catatan absensi');
         $this->get('/admin/attendance?from=2026-11-11&to=2026-10-01')->assertSessionHasErrors('to');
         $this->get('/admin/attendance?division_id=999999&status=invalid&from=not-a-date')->assertSessionHasErrors(['division_id', 'status', 'from']);

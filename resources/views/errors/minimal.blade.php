@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>@yield('code') / FaceTrack AI</title>
+<!DOCTYPE html><html lang="id"><head><x-favicon/><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>@yield('code') / FaceTrack AI</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#F7F3F8;color:#334155;font:16px/1.6 'Segoe UI',sans-serif;min-height:100vh;display:grid;place-items:center;padding:24px}
 main{width:100%;max-width:560px;background:white;border:1px solid #ede5ef;border-radius:20px;padding:clamp(24px,6vw,48px)}
