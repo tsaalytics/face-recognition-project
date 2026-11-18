@@ -148,7 +148,7 @@ class EmployeeModuleTest extends TestCase
         $r = AttendanceCorrectionRequest::latest('id')->first();
         $this->assertSame(route('employee.corrections.show', $r), $response->json('redirect'));
         $this->actingAs($this->user('hr'))->post('/hr/corrections/'.$r->id.'/decision', ['decision' => 'approved', 'notes' => 'Checked employee context'])->assertRedirect();
-        $this->actingAs($employee)->get('/employee/corrections/'.$r->id)->assertOk()->assertSee('approved')->assertSee('Checked employee context')->assertDontSee('Simpan keputusan');
+        $this->actingAs($employee)->get('/employee/corrections/'.$r->id)->assertOk()->assertSee('approved')->assertDontSee('request-history-title', false)->assertDontSee('Simpan keputusan');
         $this->get('/employee/corrections/'.$r->id.'/evidence')->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $date = $r->attendance_date->toDateString();
         $this->get('/employee/attendance?from='.$date.'&to='.$date)->assertViewHas('records', fn ($rows) => $rows->total() === 1 && $rows->first()->source === 'hr_approved_correction');
@@ -183,7 +183,7 @@ class EmployeeModuleTest extends TestCase
         Storage::disk('local')->assertExists($r->attachment_path);
         $this->get('/employee/leaves/'.$r->id.'/attachment')->assertOk();
         $this->actingAs($this->user('hr'))->post('/hr/leaves/'.$r->id.'/decision', ['decision' => 'approved', 'notes' => 'Leave approved'])->assertRedirect();
-        $this->actingAs($employee)->get('/employee/leaves/'.$r->id)->assertSee('Leave approved');
+        $this->actingAs($employee)->get('/employee/leaves/'.$r->id)->assertOk()->assertSee('Approved')->assertDontSee('request-history-title', false);
         $this->get('/employee/attendance?from='.$r->start_date->toDateString().'&to='.$r->end_date->toDateString())->assertViewHas('records', fn ($rows) => $rows->total() === 2 && $rows->every(fn ($r) => $r->status === 'leave'));
     }
 

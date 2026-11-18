@@ -1,6 +1,6 @@
 <x-layout :title="$kind === 'corrections' ? 'Koreksi Saya' : 'Izin Saya'">
 <div class="compact-list">
-<x-list-toolbar :title="$kind === 'corrections' ? 'Permohonan Koreksi Saya' : 'Pengajuan Izin Saya'" :breadcrumb="$kind === 'corrections' ? 'Koreksi Saya' : 'Izin Saya'" :dashboard="route('employee.home')" :action="route('employee.'.$kind.'.index')" :paginator="$requests" :filters="['status']" unit="permohonan" description="Pantau status dan riwayat keputusan HR.">
+<x-list-toolbar :title="$kind === 'corrections' ? 'Permohonan Koreksi Saya' : 'Pengajuan Izin Saya'" :breadcrumb="$kind === 'corrections' ? 'Koreksi Saya' : 'Izin Saya'" :dashboard="route('employee.home')" :action="route('employee.'.$kind.'.index')" :paginator="$requests" :filters="['status']" unit="permohonan">
 <x-slot:actions>
 @can('create', $kind === 'corrections' ? \App\Models\AttendanceCorrectionRequest::class : \App\Models\LeaveRequest::class)
 <a class="list-control list-primary" href="{{ route('employee.'.$kind.'.create') }}"><x-icon name="plus"/>Ajukan {{ $kind === 'corrections' ? 'koreksi' : 'izin' }}</a>
