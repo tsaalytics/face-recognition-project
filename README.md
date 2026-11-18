@@ -14,7 +14,6 @@ FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan pros
 ![InsightFace](https://img.shields.io/badge/InsightFace-buffalo__m-4B075D)
 ![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white)
 
-[Instalasi](docs/local-development.md) · [Pipeline AI](docs/recognition-pipeline.md) · [Pengujian dan audit](docs/documentation-audit.md) · [Screenshot](docs/screenshots/README.md)
 
 ## Gambaran proyek
 
