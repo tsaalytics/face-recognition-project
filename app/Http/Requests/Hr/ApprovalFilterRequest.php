@@ -15,6 +15,7 @@ class ApprovalFilterRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['q' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])]];
+        return ['q' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
+            'per_page' => ['sometimes', 'integer', Rule::in([5, 10, 25, 50])]];
     }
 }

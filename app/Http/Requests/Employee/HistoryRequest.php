@@ -16,6 +16,7 @@ class HistoryRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'per_page' => ['sometimes', 'integer', Rule::in([5, 10, 25, 50])],
             'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('from'), 'after_or_equal:from')],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
         ];

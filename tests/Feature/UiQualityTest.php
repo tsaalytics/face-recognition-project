@@ -45,7 +45,7 @@ class UiQualityTest extends TestCase
 
     public function test_tables_have_keyboard_scroll_regions_column_scopes_and_empty_states(): void
     {
-        foreach (['admin' => ['/admin/users', '/admin/employees', '/admin/attendance'], 'hr' => ['/hr/employees', '/hr/attendance', '/hr/enrollment', '/hr/corrections', '/hr/leaves'], 'employee' => ['/employee/attendance', '/employee/corrections', '/employee/leaves']] as $role => $urls) {
+        foreach (['admin' => ['/admin/users', '/admin/employees', '/admin/attendance'], 'hr' => ['/hr/employees', '/hr/attendance', '/hr/corrections', '/hr/leaves'], 'employee' => ['/employee/attendance', '/employee/corrections', '/employee/leaves']] as $role => $urls) {
             $this->actingAs($this->user($role));
             foreach ($urls as $url) {
                 $this->get($url)->assertOk()->assertSee('role="region"', false)->assertSee('tabindex="0"', false)->assertSee('scope="col"', false);

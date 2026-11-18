@@ -71,6 +71,66 @@ class FaceEnrollmentTest extends TestCase
         return ['consent' => true, 'enrollment_version' => $version, 'samples' => array_fill(0, 3, 'data:image/png;base64,'.base64_encode($bytes))];
     }
 
+    private function profileData(): array
+    {
+        return ['employee_number' => 'FORM-NEW', 'name' => 'Form Enrollment Employee', 'date_of_birth' => '2000-05-17',
+            'home_address' => 'Alamat sintetis', 'division_id' => $this->employee->division_id,
+            'email' => 'form-new@example.test', 'phone' => '080000001', 'position' => 'Operator', 'is_active' => 1];
+    }
+
+    public function test_inline_profile_form_and_optional_create_do_not_call_ai(): void
+    {
+        $this->actingAs($this->actor())->get('/hr/employees/create')->assertOk()
+            ->assertSee('id="employee-profile"', false)->assertSee('data-profile-form="employee-profile"', false)
+            ->assertSee('Not Enrolled')->assertSee('Simpan Profil')->assertSee('Face Recognition Enrollment');
+        $response = $this->postJson('/hr/employees', $this->profileData() + ['business_id' => 'forged'])->assertCreated();
+        $employee = Employee::where('email', 'form-new@example.test')->firstOrFail();
+        $response->assertJsonPath('enrollment_url', route('hr.faces.store', $employee))->assertJsonPath('edit_url', route('hr.employees.edit', $employee))
+            ->assertJsonPath('enrollment_version', 0);
+        $this->assertMatchesRegularExpression('/^\d{4}20000517$/', $employee->business_id);
+        $this->assertSame('not_enrolled', $employee->enrollment_status);
+        $this->assertDatabaseCount('employee_face_embeddings', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_inline_create_profile_remains_saved_when_following_enrollment_fails(): void
+    {
+        $before = Storage::disk('local')->allFiles();
+        $response = $this->actingAs($this->actor())->postJson('/hr/employees', $this->profileData())->assertCreated();
+        $this->fakeAi(['ai.test/*' => Http::response(['error' => ['code' => 'no_face_detected']], 422)]);
+        $this->postJson($response->json('enrollment_url'), $this->data())->assertUnprocessable();
+        $employee = Employee::where('email', 'form-new@example.test')->firstOrFail();
+        $this->assertNotNull($employee->business_id);
+        $this->assertSame('not_enrolled', $employee->enrollment_status);
+        $this->assertDatabaseCount('employees', 7);
+        $this->assertDatabaseCount('employee_face_embeddings', 0);
+        $this->assertSame($before, Storage::disk('local')->allFiles());
+        $this->get($response->json('edit_url'))->assertOk()->assertSee('Not Enrolled');
+    }
+
+    public function test_inline_profile_edit_and_failed_reenrollment_keep_old_embedding(): void
+    {
+        $this->actingAs($this->actor())->postJson($this->url(), $this->data())->assertOk();
+        $raw = DB::table('employee_face_embeddings')->value('face_embedding');
+        $payload = $this->profileData();
+        $payload['employee_number'] = $this->employee->employee_number;
+        $payload['email'] = $this->employee->email;
+        $this->putJson(route('hr.employees.update', $this->employee), $payload)->assertOk();
+        $this->fakeAi(['ai.test/*' => Http::response([], 503)]);
+        $this->postJson($this->url(), $this->data(1))->assertUnprocessable();
+        $this->assertSame('Form Enrollment Employee', $this->employee->fresh()->name);
+        $this->assertSame($raw, DB::table('employee_face_embeddings')->value('face_embedding'));
+        $this->get(route('hr.employees.edit', $this->employee))->assertOk()->assertSee('Enrolled')->assertSee('InsightFace buffalo_m')->assertSee('Delete Enrollment');
+    }
+
+    public function test_legacy_enrollment_links_redirect_to_employee_management(): void
+    {
+        $this->actingAs($this->actor())->get('/hr/enrollment?active=0&per_page=5')
+            ->assertRedirect(route('hr.employees.index', ['active' => '0', 'per_page' => '5']));
+        $this->get($this->url())->assertRedirect(route('hr.employees.edit', $this->employee).'#face-enrollment');
+        $this->get('/hr/employees')->assertOk()->assertDontSee('href="'.route('hr.enrollment').'"', false);
+    }
+
     public function test_hr_enrollment_is_encrypted_deduplicated_and_never_returned_or_stored_as_photo(): void
     {
         $before = Storage::disk('local')->allFiles();
@@ -86,7 +146,8 @@ class FaceEnrollmentTest extends TestCase
         $this->assertDatabaseHas('face_enrollment_audits', ['action' => 'enroll', 'sample_count' => 3, 'stored_count' => 1, 'consent_version' => 'biometric-demo-v1']);
         $this->assertSame($before, Storage::disk('local')->allFiles());
         $response->assertDontSee('embedding')->assertDontSee('base64');
-        $this->get($this->url())->assertOk()->assertDontSee($raw)->assertDontSee('X-API-Key')->assertDontSee('face_embedding');
+        $this->get($this->url())->assertRedirect(route('hr.employees.edit', $this->employee).'#face-enrollment');
+        $this->get(route('hr.employees.edit', $this->employee))->assertOk()->assertDontSee($raw)->assertDontSee('X-API-Key')->assertDontSee('face_embedding');
         Http::assertSentCount(3);
         Http::assertSent(fn ($request) => $request->hasHeader('X-API-Key', str_repeat('x', 40)) && str_starts_with($request->body(), "\x89PNG"));
         $this->assertDatabaseCount('attendance_records', 6);
@@ -130,7 +191,7 @@ class FaceEnrollmentTest extends TestCase
         $this->assertDatabaseMissing('employee_face_embeddings', ['id' => $oldId]);
         $this->assertDatabaseCount('employee_face_embeddings', 3);
         $this->assertDatabaseHas('face_enrollment_audits', ['action' => 're_enroll', 'version' => 2]);
-        $this->delete($this->url(), ['confirmation' => true, 'enrollment_version' => 2])->assertRedirect($this->url());
+        $this->delete($this->url(), ['confirmation' => true, 'enrollment_version' => 2])->assertRedirect(route('hr.employees.edit', $this->employee).'#face-enrollment');
         $this->assertDatabaseCount('employee_face_embeddings', 0);
         $this->assertDatabaseHas('face_enrollment_audits', ['action' => 'delete', 'version' => 3]);
         $this->assertSame('not_enrolled', $this->employee->fresh()->enrollment_status);

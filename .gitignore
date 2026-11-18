@@ -14,6 +14,7 @@
 /auth.json
 /node_modules
 /public/build
+/public/vendor/kiosk-face-detector/wasm/
 /public/hot
 /public/storage
 /storage/*.key

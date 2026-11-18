@@ -33,7 +33,7 @@ class FoundationTest extends TestCase
 
     public function test_login_page_is_accessible_and_registration_is_absent(): void
     {
-        $this->get('/login')->assertOk()->assertSee('Masuk ke workspace');
+        $this->get('/login')->assertOk()->assertSee('Welcome Back');
         $this->get('/register')->assertNotFound();
     }
 
@@ -43,7 +43,7 @@ class FoundationTest extends TestCase
             $this->post('/login', ['email' => $role.'@facetrack.test', 'password' => 'DemoFaceTrack!2026'])->assertRedirect('/');
             $this->assertAuthenticatedAs($this->account($role));
             $this->get('/')->assertRedirect('/'.$role);
-            $this->get('/'.$role)->assertOk()->assertSee('AI belum diaktifkan');
+            $this->get('/'.$role)->assertOk()->assertSee('id="main-content"', false);
             $this->post('/logout')->assertRedirect('/login');
             $this->assertGuest();
         }

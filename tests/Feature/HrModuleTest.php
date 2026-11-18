@@ -69,7 +69,11 @@ class HrModuleTest extends TestCase
         }
         $this->actingAs($this->user());
         foreach ($urls as $url) {
-            $this->get($url)->assertOk();
+            if ($url === '/hr/enrollment') {
+                $this->get($url)->assertRedirect(route('hr.employees.index'));
+            } else {
+                $this->get($url)->assertOk();
+            }
         }
     }
 
@@ -287,7 +291,8 @@ class HrModuleTest extends TestCase
         $this->get('/hr')->assertOk()->assertViewHasAll(['active' => 6, 'present' => 1, 'late' => 0, 'absent' => 5, 'pendingCorrections' => 0, 'pendingLeaves' => 1])->assertViewHas('trend', fn ($t) => count($t) === 7 && $t[6]['count'] === 1)->assertViewHas('divisions', fn ($d) => $d->sum('present_count') === 1);
         $this->get('/hr/corrections?status=approved&q=DEMO-001')->assertViewHas('requests', fn ($r) => $r->total() === 1);
         $this->get('/hr/leaves?status=rejected')->assertSee('Tidak ada permohonan yang cocok');
-        $this->get('/hr/enrollment')->assertSee('Register Face')->assertSee('Not Enrolled');
+        $this->get('/hr/enrollment')->assertRedirect(route('hr.employees.index'));
+        $this->get(route('hr.employees.edit', Employee::first()))->assertSee('Register Face')->assertSee('Not Enrolled');
         $this->post('/hr/enrollment', [])->assertStatus(405);
     }
 

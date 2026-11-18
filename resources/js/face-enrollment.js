@@ -1,8 +1,12 @@
+import { saveProfileBeforeEnrollment } from './employee-profile.js';
+
 export function setupFaceEnrollment(form, browser = window) {
     const find = (s) => form.querySelector(s);
     const consent = find('[data-face-consent]'), video = find('[data-face-video]'), canvas = find('[data-face-canvas]');
     const start = find('[data-face-start]'), capture = find('[data-face-capture]'), clear = find('[data-face-clear]'), submit = find('[data-face-submit]');
     const status = find('[data-face-status]'), errors = find('[data-face-error]');
+    const profile = form.dataset.profileForm ? browser.document.getElementById(form.dataset.profileForm) : null;
+    const profileSave = profile ? browser.document.querySelector('[data-profile-save]') : null;
     let stream = null, samples = [], generation = 0, busy = false, lastCapture = 0;
     const error = (text) => { errors.textContent = text; errors.classList.remove('hidden'); errors.focus(); };
     const stop = () => { stream?.getTracks().forEach((t) => t.stop()); stream = null; video.srcObject = null; capture.disabled = true; };
@@ -10,7 +14,7 @@ export function setupFaceEnrollment(form, browser = window) {
         submit.disabled = busy || !consent.checked || samples.length < 3;
         capture.disabled = busy || !stream || !consent.checked || samples.length >= 5;
         start.disabled = busy || !consent.checked; clear.disabled = busy; consent.disabled = busy;
-        submit.textContent = busy ? 'Memproses sampel...' : 'Simpan enrollment';
+        submit.textContent = busy ? 'Memproses sampel...' : (form.dataset.submitLabel || 'Simpan enrollment');
     };
     const reset = () => {
         generation++; stop(); samples = []; lastCapture = 0;
@@ -49,8 +53,16 @@ export function setupFaceEnrollment(form, browser = window) {
     });
     form.addEventListener('submit', async (event) => {
         event.preventDefault(); if (busy || !consent.checked || samples.length < 3) return;
+        if (profile && !profile.reportValidity()) return;
         busy = true; stop(); refresh(); errors.classList.add('hidden');
+        if (profileSave) profileSave.disabled = true;
         try {
+            if (profile) {
+                // Construct FormData before disabling/inerting the controls.
+                const saving = saveProfileBeforeEnrollment(form, profile, browser);
+                profile.inert = true;
+                await saving;
+            }
             const response = await browser.fetch(form.action, { method: 'POST', credentials: 'same-origin',
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': find('[name="_token"]').value },
                 body: JSON.stringify({ consent: true, enrollment_version: Number(form.dataset.version), samples }) });
@@ -59,8 +71,8 @@ export function setupFaceEnrollment(form, browser = window) {
             if (response.status === 419 || response.status === 401) { error('Sesi formulir berakhir. Muat ulang halaman dan login kembali.'); return; }
             let body = null; try { body = await response.json(); } catch { /* Proxy/maintenance error. */ }
             error(body?.errors ? Object.values(body.errors).flat().join(' ') : (body?.message || 'Enrollment gagal. Periksa status sebelum mencoba kembali.'));
-        } catch { error('Koneksi terputus; status penyimpanan belum pasti. Muat ulang halaman dan periksa enrollment sebelum mencoba lagi.'); }
-        finally { busy = false; reset(); }
+        } catch (failure) { error(failure?.name !== 'TypeError' && failure?.message ? failure.message : 'Koneksi terputus; status penyimpanan belum pasti. Muat ulang halaman dan periksa profil serta enrollment sebelum mencoba lagi.'); }
+        finally { if (profile) profile.inert = false; if (profileSave) profileSave.disabled = false; busy = false; reset(); }
     });
     browser.addEventListener('pagehide', reset);
     browser.addEventListener('pageshow', () => { consent.checked = false; reset(); });

@@ -185,4 +185,18 @@ class AdminModuleTest extends TestCase
         $this->delete('/admin/users/'.$this->account('hr')->id)->assertStatus(405);
         $this->assertSame($before, AttendanceRecord::count());
     }
+
+    public function test_monthly_chart_counts_one_attendance_per_employee_per_day_and_excludes_future_dates(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-01-15 12:00:00', 'Asia/Jakarta'));
+        AttendanceRecord::query()->delete();
+        $employee = Employee::firstOrFail();
+        foreach ([['2026-01-14', 'regular'], ['2026-01-15', 'regular'], ['2026-01-15', 'evening'], ['2026-01-16', 'regular']] as [$date, $session]) {
+            AttendanceRecord::create(['employee_id' => $employee->id, 'attendance_date' => $date, 'session' => $session,
+                'check_in_at' => $date.' 08:00:00', 'status' => 'present', 'source' => 'seed_fixture']);
+        }
+        $this->actingAs($this->account())->get('/admin')->assertOk()
+            ->assertViewHas('monthly', fn ($months) => count($months) === 12 && $months[1] === 2 && array_sum($months) === 2)
+            ->assertSee('Jumlah Kehadiran per Bulan | 2026')->assertSee('Notifikasi');
+    }
 }

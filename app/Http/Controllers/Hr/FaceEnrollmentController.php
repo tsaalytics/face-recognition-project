@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Hr;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\FaceEnrollmentRequest;
 use App\Models\Employee;
-use App\Models\FaceEnrollmentAudit;
 use App\Services\FaceEnrollmentService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
@@ -19,10 +18,7 @@ class FaceEnrollmentController extends Controller
     {
         Gate::authorize('manageFace', $employee);
 
-        return response()->view('hr.faces.show', ['employee' => $employee,
-            'sampleCount' => $employee->faceEmbeddings()->count(),
-            'audits' => FaceEnrollmentAudit::where('employee_id', $employee->id)->latest('id')->paginate(10)])
-            ->header('Cache-Control', 'private, no-store');
+        return redirect(route('hr.employees.edit', $employee).'#face-enrollment');
     }
 
     public function store(FaceEnrollmentRequest $request, Employee $employee, FaceEnrollmentService $service)
@@ -46,6 +42,6 @@ class FaceEnrollmentController extends Controller
         $data = $request->validate(['confirmation' => ['required', 'accepted'], 'enrollment_version' => ['required', 'integer', 'min:0']]);
         $service->delete($request->user(), $employee, (int) $data['enrollment_version']);
 
-        return redirect()->route('hr.faces.show', $employee)->with('success', 'Enrollment telah dihapus.');
+        return redirect(route('hr.employees.edit', $employee).'#face-enrollment')->with('success', 'Enrollment telah dihapus.');
     }
 }

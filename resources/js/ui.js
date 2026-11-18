@@ -1,10 +1,35 @@
+const confirmationDialogs = new WeakMap();
+
+function showConfirmation(dialog, message, approve) {
+    let state = confirmationDialogs.get(dialog);
+    if (!state) {
+        state = { approve: null };
+        confirmationDialogs.set(dialog, state);
+        dialog.querySelector('[data-confirm-cancel]').addEventListener('click', () => dialog.close());
+        dialog.querySelector('[data-confirm-accept]').addEventListener('click', () => {
+            const callback = state.approve;
+            state.approve = null;
+            dialog.close();
+            callback?.();
+        });
+        dialog.addEventListener('close', () => { state.approve = null; });
+        dialog.addEventListener('cancel', () => { state.approve = null; });
+    }
+    if (dialog.open) return;
+    state.approve = approve;
+    dialog.querySelector('[data-confirm-message]').textContent = message;
+    dialog.showModal();
+}
+
 export function setupSubmission(form, browser = window) {
-    const button = form.querySelector('[data-submit-button]') || form.querySelector('button[type="submit"], button:not([type])');
+    const button = form.querySelector('[data-submit-button]') || form.querySelector('button[type="submit"], button:not([type])')
+        || (form.id ? form.ownerDocument?.querySelector(`[form="${form.id}"][data-profile-save]`) : null);
     if (!button) return;
     const originalLabel = button.textContent;
-    let busy = false;
+    let busy = false, approved = false;
     const reset = () => {
         busy = false;
+        approved = false;
         button.disabled = false;
         button.textContent = originalLabel;
         form.removeAttribute('aria-busy');
@@ -13,6 +38,16 @@ export function setupSubmission(form, browser = window) {
         if (event.defaultPrevented) return;
         if (busy) { event.preventDefault(); return; }
         if (!form.reportValidity()) { event.preventDefault(); return; }
+        if (form.dataset?.confirm && !approved) {
+            const dialog = form.ownerDocument?.querySelector('[data-confirm-dialog]');
+            if (dialog) {
+                event.preventDefault();
+                showConfirmation(dialog, form.dataset.confirm, () => { approved = true; form.requestSubmit(); });
+                return;
+            }
+            if (!browser.confirm(form.dataset.confirm)) { event.preventDefault(); return; }
+        }
+        approved = false;
         busy = true;
         form.setAttribute('aria-busy', 'true');
         button.disabled = true;

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Hr\AttendanceIndexRequest;
 use App\Http\Requests\Hr\MonitorRequest;
 use App\Models\Division;
 use App\Services\AdminMonitoringService;
@@ -12,17 +13,17 @@ class MonitoringController extends Controller
 {
     public function dashboard(HrDashboardService $service)
     {
-        return view('hr.dashboard', $service->data());
+        return view('hr.dashboard', array_merge($service->data(), app(\App\Services\DashboardPresentationService::class)->data(true)));
     }
 
-    public function attendance(MonitorRequest $request, AdminMonitoringService $service)
+    public function attendance(AttendanceIndexRequest $request, AdminMonitoringService $service)
     {
-        return view('hr.attendance', ['records' => $service->attendance($request->validated()), 'divisions' => Division::orderBy('name')->get()]);
+        return view('hr.attendance', ['records' => $service->attendance($request->validated(), (int) $request->validated('per_page', 10)), 'divisions' => Division::orderBy('name')->get()]);
     }
 
     public function enrollment(MonitorRequest $request, AdminMonitoringService $service)
     {
-        return view('hr.enrollment', ['employees' => $service->employees($request->validated()), 'divisions' => Division::orderBy('name')->get()]);
+        return redirect()->route('hr.employees.index', $request->safe()->only(['q', 'division_id', 'active', 'per_page']));
     }
 
     public function export(MonitorRequest $request, AdminMonitoringService $service)

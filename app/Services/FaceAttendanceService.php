@@ -7,15 +7,19 @@ use App\Models\Employee;
 use App\Models\EmployeeFaceEmbedding;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Models\KioskDevice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class FaceAttendanceService
 {
-    public function __construct(private FaceExtractionClient $client, private FaceEmbeddingMatcher $matcher) {}
+    public function __construct(private FaceExtractionClient $client, private FaceEmbeddingMatcher $matcher, private AttendanceSchedule $schedule) {}
 
-    public function record(User $actor, array $data, int $expires): array
+    public function record(User|KioskDevice $actor, array $data, int $expires): array
     {
+        if ($this->schedule->current()['mode'] === 'closed') {
+            $this->fail('Absensi belum tersedia. Silakan ikuti jadwal yang ditentukan.');
+        }
         $threshold = config('face.similarity_threshold');
         $margin = config('face.identification_margin');
         if (! is_numeric($threshold) || ! is_finite((float) $threshold) || $threshold <= 0 || $threshold > 1) {
@@ -51,41 +55,57 @@ class FaceAttendanceService
             $this->fail('Wajah tidak dikenali dengan cukup yakin. Coba ulang atau gunakan koreksi melalui HR.');
         }
 
-        return DB::transaction(function () use ($actor, $data, $ids, $versions, $expires) {
+        return DB::transaction(function () use ($actor, $ids, $versions, $expires) {
             abort_unless($expires > now()->timestamp, 403, 'Sesi kiosk berakhir.');
-            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            abort_unless($actor->is_active && $actor->role->value === 'hr', 403);
+            if ($actor instanceof KioskDevice) {
+                $actor = KioskDevice::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                abort_unless($actor->authorized(), 403, 'Akses perangkat kiosk berakhir atau dicabut.');
+            } else {
+                // Compatibility for the pre-existing authenticated HR API only.
+                $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                abort_unless($actor->is_active && $actor->role->value === 'hr', 403);
+            }
             $employee = Employee::whereKey($ids[0])->lockForUpdate()->firstOrFail();
             if (! $employee->is_active || ! $employee->business_id || $employee->enrollment_status !== 'enrolled' || $employee->face_enrollment_version !== $versions[$employee->id]) {
                 $this->fail('Enrollment berubah. Silakan scan ulang.');
             }
-            $now = now(config('attendance.timezone'));
-            $date = $now->toDateString();
+            // Resolve again after inference/locks so crossing a boundary uses server commit-time rules.
+            $schedule = $this->schedule->current();
+            if ($schedule['mode'] === 'closed') {
+                $this->fail('Absensi belum tersedia. Silakan ikuti jadwal yang ditentukan.');
+            }
+            $now = $schedule['time'];
+            $date = $schedule['attendance_date'];
+            $mode = $schedule['mode'];
             if (LeaveRequest::where('employee_id', $employee->id)->where('status', 'approved')->whereDate('start_date', '<=', $date)->whereDate('end_date', '>=', $date)->exists()) {
                 $this->fail('Karyawan memiliki izin yang disetujui hari ini.');
             }
-            $record = AttendanceRecord::where('employee_id', $employee->id)->whereDate('attendance_date', $date)->where('session', config('attendance.default_session'))->lockForUpdate()->first();
+            $record = AttendanceRecord::where('employee_id', $employee->id)->whereDate('attendance_date', $date)->where('session', $schedule['session'])->lockForUpdate()->first();
             if ($record && ($record->source !== 'face_recognition' || $record->status === 'leave')) {
                 $this->fail('Catatan existing dilindungi. Hubungi HR untuk koreksi.');
             }
-            if ($data['type'] === 'check_in') {
+            if ($mode === 'check_in') {
                 if ($record?->check_in_at) {
-                    $this->fail('Check-in hari ini sudah tercatat.');
+                    $this->fail('Absensi untuk sesi ini sudah tercatat.');
                 }
-                $record ??= new AttendanceRecord(['employee_id' => $employee->id, 'attendance_date' => $date, 'session' => config('attendance.default_session')]);
+                $record ??= new AttendanceRecord(['employee_id' => $employee->id, 'attendance_date' => $date, 'session' => $schedule['session']]);
                 $record->check_in_at = $now;
-                $start = $now->copy()->setTimeFromTimeString(config('attendance.shift_start'))->addMinutes(config('attendance.late_grace_minutes'));
-                $record->status = $now->gt($start) ? 'late' : 'present';
+                $record->status = $schedule['status'];
             } else {
-                if (! $record?->check_in_at || $record->check_out_at || $now->lte($record->check_in_at)) {
-                    $this->fail('Check-out membutuhkan check-in sebelumnya dan hanya dapat dicatat sekali.');
+                if ($record?->check_out_at) {
+                    $this->fail('Absensi untuk sesi ini sudah tercatat.');
+                }
+                if (! $record?->check_in_at || $now->lte($record->check_in_at)) {
+                    $this->fail('Check-out membutuhkan check-in sebelumnya. Ajukan koreksi melalui HR.');
                 }
                 $record->check_out_at = $now;
             }
             $record->source = 'face_recognition';
             $record->save();
 
-            return ['message' => 'Absensi berhasil dicatat.', 'employee' => $employee->business_id, 'type' => $data['type'], 'time' => $now->format('d-m-Y H:i:s').' WIB'];
+            return ['message' => 'Berhasil absen '.($mode === 'check_in' ? 'masuk' : 'pulang').' atas nama '.$employee->name.', pada '.$now->format('d-m-Y').' pukul '.$now->format('H:i:s').' WIB.',
+                'employee' => $employee->business_id, 'employee_name' => $employee->name, 'status' => $record->status,
+                'type' => $mode, 'attendance_date' => $date, 'time' => $now->format('d-m-Y H:i:s').' WIB'];
         }, 3);
     }
 

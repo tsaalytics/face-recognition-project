@@ -16,6 +16,7 @@ class MonitorRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'per_page' => ['sometimes', 'integer', Rule::in([5, 10, 25, 50])],
             'q' => ['nullable', 'string', 'max:100'],
             'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
             'from' => ['nullable', 'date_format:Y-m-d'],

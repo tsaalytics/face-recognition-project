@@ -36,6 +36,48 @@ test('submission cancelled by another handler keeps the form usable',()=>{
  form.listeners.get('submit')({defaultPrevented:true});
  assert.equal(button.disabled,false);assert.equal(button.textContent,'Simpan');assert.equal(form.attrs.has('aria-busy'),false);
 });
+
+test('revoke confirmation can be cancelled without submitting or locking the button', () => {
+ const button = element(), form = element(), browser = element();
+ form.querySelector = () => button; form.reportValidity = () => true;
+ form.dataset = { confirm: 'Yakin ingin mencabut akses perangkat Tablet Lobby?' };
+ let approved = false, prompts = 0, prevented = 0;
+ browser.confirm = (message) => { prompts++; assert.equal(message, form.dataset.confirm); return approved; };
+ setupSubmission(form, browser);
+ form.listeners.get('submit')({ preventDefault() { prevented++; } });
+ assert.equal(prevented, 1); assert.equal(button.disabled, false); assert.equal(form.attrs.has('aria-busy'), false);
+ approved = true;
+ form.listeners.get('submit')({ preventDefault() { prevented++; } });
+ assert.equal(prevented, 1); assert.equal(button.disabled, true); assert.equal(prompts, 2);
+ form.listeners.get('submit')({ preventDefault() { prevented++; } });
+ assert.equal(prompts, 2); assert.equal(prevented, 2);
+});
+
+test('styled confirmation cancels safely and submits exactly once only after approval', () => {
+ const button = element(), form = element(), browser = element();
+ const cancel = element(), accept = element(), message = element(), dialog = element();
+ dialog.open = false;
+ dialog.querySelector = (selector) => ({ '[data-confirm-cancel]': cancel, '[data-confirm-accept]': accept, '[data-confirm-message]': message })[selector];
+ dialog.showModal = () => { dialog.open = true; };
+ dialog.close = () => { dialog.open = false; dialog.listeners.get('close')(); };
+ form.ownerDocument = { querySelector: () => dialog };
+ form.querySelector = () => button; form.reportValidity = () => true;
+ form.dataset = { confirm: 'Yakin ingin mencabut akses perangkat Tablet Lobby?' };
+ let submissions = 0;
+ form.requestSubmit = () => { submissions++; form.listeners.get('submit')({ preventDefault() {} }); };
+ browser.confirm = () => { throw new Error('Native confirmation should not appear'); };
+ setupSubmission(form, browser);
+ const submit = () => form.listeners.get('submit')({ preventDefault() {} });
+ submit();
+ assert.equal(dialog.open, true); assert.equal(message.textContent, form.dataset.confirm);
+ cancel.listeners.get('click')();
+ assert.equal(submissions, 0); assert.equal(button.disabled, false);
+ submit(); dialog.listeners.get('cancel')(); dialog.close();
+ assert.equal(submissions, 0);
+ submit(); accept.listeners.get('click')();
+ assert.equal(dialog.open, false); assert.equal(submissions, 1); assert.equal(button.disabled, true);
+ accept.listeners.get('click')(); assert.equal(submissions, 1);
+});
 test('mobile navigation toggles aria and Escape returns keyboard focus',()=>{
  const button=element(),nav=element();button.setAttribute('aria-expanded','false');
  setupNavigation(button,nav);button.listeners.get('click')();

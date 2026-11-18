@@ -22,7 +22,7 @@ class UserController extends Controller
             ->when($f['account_status'] ?? null, fn ($q, $status) => $q->where('account_status', $status))
             ->when($f['role'] ?? null, fn ($q, $r) => $q->where('role', $r))
             ->when(isset($f['active']), fn ($q) => $q->where('is_active', $f['active']))
-            ->orderBy('name')->orderBy('id')->paginate(15)->withQueryString();
+            ->orderBy('name')->orderBy('id')->paginate((int) ($f['per_page'] ?? 10))->withQueryString();
 
         return view('admin.users.index', compact('users'));
     }

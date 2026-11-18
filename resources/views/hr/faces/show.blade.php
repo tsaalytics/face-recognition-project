@@ -30,5 +30,5 @@
 <h2 class="mt-8 text-xl font-bold text-purple">Audit perubahan enrollment</h2>
 <div class="table-panel mt-4" role="region" aria-label="Audit enrollment" tabindex="0"><table class="data-table"><thead><tr><th scope="col">Waktu server</th><th scope="col">Aksi</th><th scope="col">Aktor HR</th><th scope="col">Versi / sampel</th></tr></thead><tbody>
 @forelse($audits as $audit)<tr><td>{{ $audit->occurred_at->format('d-m-Y H:i:s') }} WIB</td><td>{{ $audit->action }}</td><td>#{{ $audit->actor_id }}</td><td>{{ $audit->version }} / {{ $audit->sample_count }} input, {{ $audit->stored_count }} tersimpan</td></tr>@empty<tr><td colspan="4" class="empty-state">Belum ada perubahan enrollment.</td></tr>@endforelse
-</tbody></table></div>{{ $audits->links() }}
+</tbody></table></div><x-list-pagination :paginator="$audits"/>
 </x-layout>

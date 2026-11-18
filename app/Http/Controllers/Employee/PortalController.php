@@ -33,7 +33,7 @@ class PortalController extends Controller
         $f = $request->validated();
         $records = AttendanceRecord::whereHas('employee', fn ($q) => $q->where('user_id', $request->user()->id))
             ->when($f['from'] ?? null, fn ($q, $d) => $q->whereDate('attendance_date', '>=', $d))->when($f['to'] ?? null, fn ($q, $d) => $q->whereDate('attendance_date', '<=', $d))
-            ->orderByDesc('attendance_date')->orderByDesc('id')->paginate(15)->withQueryString();
+            ->orderByDesc('attendance_date')->orderByDesc('id')->paginate((int) ($f['per_page'] ?? 10))->withQueryString();
 
         return view('employee.attendance', compact('employee', 'records'));
     }
@@ -43,7 +43,7 @@ class PortalController extends Controller
         $f = $request->validated();
         $employee = $this->profile($request);
         $requests = $model::whereHas('employee', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->when($f['status'] ?? null, fn ($q, $s) => $q->where('status', $s))->orderByDesc('submitted_at')->orderByDesc('id')->paginate(15)->withQueryString();
+            ->when($f['status'] ?? null, fn ($q, $s) => $q->where('status', $s))->orderByDesc('submitted_at')->orderByDesc('id')->paginate((int) ($f['per_page'] ?? 10))->withQueryString();
 
         return view('employee.requests.index', compact('requests', 'kind', 'employee'));
     }

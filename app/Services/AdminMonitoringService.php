@@ -16,13 +16,13 @@ class AdminMonitoringService
         return ['employeeCount' => Employee::count(), 'activeEmployeeCount' => $active, 'presentCount' => $present, 'absentCount' => max(0, $active - $present), 'userCount' => User::count()];
     }
 
-    public function employees(array $f)
+    public function employees(array $f, int $perPage = 15)
     {
         return Employee::with(['division', 'user'])
             ->when($f['q'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('employee_number', 'like', "%$s%")->orWhere('business_id', 'like', "%$s%")->orWhere('email', 'like', "%$s%")))
             ->when($f['division_id'] ?? null, fn ($q, $id) => $q->where('division_id', $id))
             ->when(isset($f['active']), fn ($q) => $q->where('is_active', $f['active']))
-            ->orderBy('name')->orderBy('id')->paginate(15)->withQueryString();
+            ->orderBy('name')->orderBy('id')->paginate($perPage)->withQueryString();
     }
 
     public function attendanceQuery(array $f)
@@ -36,8 +36,8 @@ class AdminMonitoringService
             ->orderByDesc('attendance_date')->orderByDesc('id');
     }
 
-    public function attendance(array $f)
+    public function attendance(array $f, int $perPage = 15)
     {
-        return $this->attendanceQuery($f)->paginate(15)->withQueryString();
+        return $this->attendanceQuery($f)->paginate($perPage)->withQueryString();
     }
 }

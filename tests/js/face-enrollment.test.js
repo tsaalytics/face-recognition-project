@@ -12,16 +12,25 @@ function fixture(options = {}) {
     els.video.videoWidth = 640; els.video.videoHeight = 480; els.video.play = async () => {};
     els.canvas.getContext = () => ({ drawImage() {} });
     els.canvas.toDataURL = () => 'data:image/jpeg;base64,SYNTHETIC';
-    let stopped = 0, cameraCalls = 0, fetchCalls = [], reloaded = 0;
+    let stopped = 0, cameraCalls = 0, fetchCalls = [], urls = [], reloaded = 0;
     const stream = { getTracks: () => [{ stop() { stopped++; } }] };
     const form = { action: '/hr/employees/1/face', dataset: { version: '2' },
         querySelector(s) { if (s.includes('_token')) return { value: 'csrf' }; return els[s.replace('[data-face-', '').replace(']', '')]; },
         addEventListener(name, fn) { this[name] = fn; } };
     const browser = { isSecureContext: true, navigator: { mediaDevices: { getUserMedia: async () => { cameraCalls++; if (options.denied) throw Error(); return options.pending ? options.pending : stream; } } },
         addEventListener(name, fn) { listeners.set(name, fn); }, location: { reload() { reloaded++; } },
-        fetch: async (url, request) => { fetchCalls.push(request); if (options.network) throw Error(); return options.response || { ok: true }; } };
+        fetch: async (url, request) => { urls.push(url); fetchCalls.push(request); if (options.network) throw Error(); return options.handler ? options.handler(url, request) : (options.response || { ok: true }); } };
+    let profile = null;
+    if (options.integrated) {
+        const fields = { '[name="_token"]': { value: 'csrf' }, '[name="_method"]': { value: 'POST' }, '#business_id': { value: '' } };
+        profile = { action: '/hr/employees', reportValidity: () => !options.invalidProfile, querySelector: (s) => fields[s] };
+        form.dataset.profileForm = 'employee-profile'; form.dataset.profilePersisted = options.persisted ? '1' : '0';
+        browser.document = { getElementById: () => profile, querySelector: () => make() };
+        browser.FormData = class { constructor(source) { this.source = source; } };
+        browser.history = { replaceState() {} };
+    }
     setupFaceEnrollment(form, browser);
-    return { els, form, browser, stream, listeners, stats: () => ({ stopped, cameraCalls, fetchCalls, reloaded }) };
+    return { els, form, browser, profile, stream, listeners, stats: () => ({ stopped, cameraCalls, fetchCalls, urls, reloaded }) };
 }
 
 async function captureThree(f) {
@@ -72,4 +81,45 @@ test('validation/network failure clears images and pagehide stops camera', async
     }
     const f = fixture(); await captureThree(f); f.listeners.get('pagehide')();
     assert.equal(f.stats().stopped, 1); assert.equal(f.els.submit.disabled, true);
+});
+
+const savedProfile = { update_url: '/hr/employees/7', edit_url: '/hr/employees/7/edit', enrollment_url: '/hr/employees/7/face', business_id: '123420000517', enrollment_version: 0 };
+
+test('integrated creation saves profile before AI and keeps retry bound to the saved employee after AI failure', async () => {
+    const f = fixture({ integrated: true, handler: async (url) => url.endsWith('/face')
+        ? { ok: false, status: 503, json: async () => ({ message: 'AI tidak tersedia' }) }
+        : { ok: true, json: async () => savedProfile } });
+    await captureThree(f);
+    await f.form.submit({ preventDefault() {} });
+    assert.deepEqual(f.stats().urls, ['/hr/employees', '/hr/employees/7/face']);
+    assert.equal(f.profile.action, '/hr/employees/7');
+    assert.equal(f.profile.querySelector('[name="_method"]').value, 'PUT');
+    assert.equal(f.profile.querySelector('#business_id').value, savedProfile.business_id);
+    assert.equal(f.form.dataset.profilePersisted, '1');
+    assert.equal(f.els.error.textContent, 'AI tidak tersedia');
+    assert.equal(f.profile.inert, false);
+    assert.equal(f.stats().reloaded, 0);
+    await captureThree(f);
+    await f.form.submit({ preventDefault() {} });
+    assert.equal(f.stats().urls[2], '/hr/employees/7');
+});
+
+test('invalid profile or server validation prevents any enrollment request', async () => {
+    const invalid = fixture({ integrated: true, invalidProfile: true });
+    await captureThree(invalid); await invalid.form.submit({ preventDefault() {} });
+    assert.equal(invalid.stats().fetchCalls.length, 0);
+    const denied = fixture({ integrated: true, handler: async () => ({ ok: false, status: 422, json: async () => ({ errors: { email: ['Email sudah digunakan'] } }) }) });
+    await captureThree(denied); await denied.form.submit({ preventDefault() {} });
+    assert.deepEqual(denied.stats().urls, ['/hr/employees']);
+    assert.match(denied.els.error.textContent, /Email sudah digunakan/);
+    assert.equal(denied.profile.action, '/hr/employees');
+});
+
+test('saving an existing profile never upgrades a stale enrollment version before re-enrolling', async () => {
+    const f = fixture({ integrated: true, persisted: true, handler: async (url) => url.endsWith('/face')
+        ? { ok: false, status: 409 }
+        : { ok: true, json: async () => ({ ...savedProfile, enrollment_version: 9 }) } });
+    await captureThree(f); await f.form.submit({ preventDefault() {} });
+    assert.equal(JSON.parse(f.stats().fetchCalls[1].body).enrollment_version, 2);
+    assert.match(f.els.error.textContent, /Enrollment telah berubah/);
 });

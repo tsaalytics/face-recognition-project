@@ -1,20 +1,16 @@
-<x-layout title="Kiosk absensi wajah">
-<h1 class="text-3xl font-bold text-purple">Kiosk absensi wajah</h1>
-<p class="mt-4 text-sm">Demo nonkomersial dengan pengawasan HR. Sesi regular, mulai 08.00 WIB tanpa toleransi keterlambatan. Waktu absensi berasal dari server. Tidak ada liveness/anti-spoofing. Foto diproses sementara tanpa disimpan. Peserta dapat menolak biometrik dan menggunakan koreksi melalui HR.</p>
-@if($expires > now()->timestamp)
-<p class="mt-4">Sesi berakhir {{ \Carbon\Carbon::createFromTimestamp($expires, 'Asia/Jakarta')->format('H:i:s') }} WIB.</p>
-<form method="POST" action="{{ route('hr.kiosk.stop') }}" class="mt-4">@csrf<button class="button">Tutup sesi kiosk</button></form>
-<form data-face-kiosk data-expires="{{ $expires }}" action="{{ route('hr.kiosk.scan') }}" class="mt-6 rounded-2xl bg-white p-6">
+<x-layout title="Kiosk Absensi Wajah">
+<section class="kiosk-page">
+<header class="kiosk-heading"><div><h1>Kiosk Absensi Wajah</h1><p>Absensi otomatis berdasarkan jadwal server WIB.</p></div><img src="{{ asset('images/facetrack-ai-logo.png') }}" alt="FaceTrack AI" width="150" height="36"></header>
+<form data-face-kiosk action="{{ route('hr.kiosk.scan') }}" data-status-url="{{ route('hr.kiosk.status') }}" data-start-url="{{ route('hr.kiosk.start') }}" data-stop-url="{{ route('hr.kiosk.stop') }}" data-detector-base="{{ asset('vendor/kiosk-face-detector') }}" data-expires="{{ $expires }}" data-paused="{{ $paused ? '1' : '0' }}" data-mode="{{ $schedule['mode'] }}" data-server-time="{{ $schedule['time']->toIso8601String() }}" data-poll-ms="{{ config('attendance.kiosk.poll_ms') }}" data-stable-ms="{{ config('attendance.kiosk.stable_ms') }}" data-cooldown-ms="{{ config('attendance.kiosk.cooldown_ms') }}" data-absence-ms="{{ config('attendance.kiosk.absence_ms') }}" class="kiosk-card">
 @csrf
-<label class="block"><input type="checkbox" data-consent> Saya menyetujui pemrosesan wajah untuk mencatat absensi demo ini (biometric-demo-v1).</label>
-<label class="mt-4 block">Jenis absensi <select name="type"><option value="check_in">Check-in</option><option value="check_out">Check-out</option></select></label>
-<video autoplay muted playsinline class="mt-4 aspect-video w-full max-w-xl bg-slate-900" aria-label="Preview kamera absensi"></video><canvas hidden></canvas>
-<button type="button" data-start class="button mt-4">Buka kamera</button>
-<button data-scan class="button mt-4" disabled>Scan dan catat absensi</button>
-<p role="status" aria-live="polite" class="mt-4" data-status>Kamera belum aktif.</p>
-<noscript>Aktifkan JavaScript untuk menggunakan kamera.</noscript>
+<div class="kiosk-meta"><span data-camera-state>Camera Inactive</span><time data-kiosk-time>{{ $schedule['time']->format('d M Y H:i:s') }} WIB</time><strong data-kiosk-mode>{{ $schedule['mode'] }}</strong></div>
+<div class="kiosk-preview"><video autoplay muted playsinline aria-label="Live camera preview absensi"></video><div class="kiosk-face-guide" aria-hidden="true"></div></div><canvas hidden></canvas>
+<p data-status role="status" aria-live="polite" class="kiosk-status">Menyiapkan kiosk otomatis…</p>
+<label class="profile-consent"><input type="checkbox" data-consent> Saya menyetujui pemrosesan wajah untuk mencatat absensi demo ini (biometric-demo-v1). Setelah persetujuan, scanning berlangsung otomatis.</label>
+<p data-result role="status" aria-live="polite" class="kiosk-result"></p>
+<div class="kiosk-actions"><button type="button" data-kiosk-toggle class="list-control">Jeda Kiosk</button><button type="button" data-kiosk-retry class="list-control" hidden>Coba Kamera Lagi</button><a class="list-control" href="{{ route('hr.corrections.index') }}">Koreksi melalui HR</a></div>
+<noscript>Aktifkan JavaScript untuk menggunakan kiosk. HR dapat memakai workflow koreksi absensi.</noscript>
 </form>
-@else
-<form method="POST" action="{{ route('hr.kiosk.start') }}" class="mt-6">@csrf<button class="button">Aktifkan kiosk selama 15 menit</button></form>
-@endif
+<p class="kiosk-privacy">Kiosk demo nonkomersial dengan pengawasan HR. HR memastikan peserta menerima penjelasan dan menyetujui pemrosesan biometrik (biometric-demo-v1). Peserta dapat menolak dan memakai koreksi melalui HR. Foto diproses sementara tanpa disimpan permanen. Deteksi lokal hanya memicu pemindaian; tidak ada liveness/anti-spoofing. Kosongkan bingkai setelah hasil tampil.</p>
+</section>
 </x-layout>
