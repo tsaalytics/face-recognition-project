@@ -6,7 +6,7 @@
 
 *AI-Powered Employee Attendance Management System*
 
-FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan proses administrasi HR. Laravel menangani akun, kebijakan akses, dan aturan absensi; layanan Python menjalankan inferensi model wajah. Proyek portofolio personal ini merupakan **prototipe**: fitur aplikasi telah diimplementasikan, tetapi akurasi pengenalan dan kesiapan produksi belum dievaluasi secara menyeluruh.
+FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan proses administrasi HR. Laravel menangani akun, kebijakan akses, dan aturan absensi; layanan Python menjalankan inferensi model wajah.
 
 ![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![Python 3.10](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
