@@ -1,171 +1,202 @@
+<p align="center">
+  <img src="public/images/facetrack-ai-logo.png" alt="FaceTrack AI" width="300">
+</p>
+
 # FaceTrack AI
 
-Laravel 13 / PHP 8.3, Blade + Tailwind 4, Vite, MySQL.
-Modul Admin, HR dan Employee tersedia. Enrollment wajah HR tersedia; absensi wajah belum diaktifkan.
+*AI-Powered Employee Attendance Management System*
 
-Dokumen ini menjelaskan perilaku **setelah Employee & Invitation Refinement**.
-Laporan phase-1/2/3/4 di docs adalah catatan historis, bukan spesifikasi terbaru.
+FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan proses administrasi HR. Laravel menangani akun, kebijakan akses, dan aturan absensi; layanan Python menjalankan inferensi model wajah. Proyek portofolio personal ini merupakan **prototipe**: fitur aplikasi telah diimplementasikan, tetapi akurasi pengenalan dan kesiapan produksi belum dievaluasi secara menyeluruh.
 
-## Instalasi baru
-PHP >=8.3 (pdo_mysql, pdo_sqlite untuk tes, GD, mbstring, fileinfo, XML, curl, zip),
-Composer 2, Node 22.11+ dan npm. Aset memakai Vite 6 yang kompatibel Node lokal.
-Buat database MySQL kosong khusus aplikasi (disarankan MySQL 8 untuk lingkungan baru).
+![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
+![Python 3.10](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/AI_Service-FastAPI-009688)
+![InsightFace](https://img.shields.io/badge/InsightFace-buffalo__m-4B075D)
+![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white)
+
+[Instalasi](docs/local-development.md) · [Pipeline AI](docs/recognition-pipeline.md) · [Pengujian dan audit](docs/documentation-audit.md) · [Screenshot](docs/screenshots/README.md)
+
+## Gambaran proyek
+
+Pencatatan absensi manual dapat menambah pekerjaan administratif, memecah data kehadiran, memperlambat pelaporan, dan menyulitkan penanganan koreksi. FaceTrack AI dirancang untuk menyatukan identifikasi berbasis Computer Vision, pencatatan otomatis, ringkasan kehadiran, dan keputusan HR dalam satu alur dengan pembatasan akses per peran.
+
+Ide proyek berangkat dari pengalaman studi kasus absensi perusahaan pada Capstone sebelumnya. Repositori ini adalah pengembangan personal; **bukan klaim bahwa versi FaceTrack AI ini digunakan atau telah di-deploy oleh perusahaan tersebut**. Dampak terhadap beban kerja HR belum diukur.
+
+## Demo dan screenshot
+
+Belum ada screenshot aplikasi terkurasi di `docs/screenshots/` dan belum ada tautan demo publik yang terverifikasi. Logo di atas adalah aset branding, bukan bukti demo. [Daftar pengambilan screenshot](docs/screenshots/README.md) mencakup dashboard, direktori/detail karyawan, enrollment, kiosk, riwayat absensi, dan approval koreksi. Gunakan data sintetis dan peserta yang memberikan izin sebelum menerbitkan visual.
+
+## Fitur dan status
+
+**Implemented** berarti tersedia dalam kode dan cakupan pengujian terkait; bukan jaminan kualitas pengenalan di perangkat atau kondisi lapangan. **In Development** berarti fondasinya tersedia tetapi validasi belum selesai. **Planned** berarti belum menjadi kemampuan aktif aplikasi.
+
+| Komponen | Kemampuan | Status |
+| --- | --- | --- |
+| Administrator | Pengelolaan akun, role HR/Employee, status akun, undangan dan aktivasi password | Implemented |
+| Administrator | Dashboard dan monitoring absensi; direktori/detail profil penuh dibatasi untuk HR | Implemented |
+| HR | Tambah/edit profil, NIK, ID bisnis, divisi, pencarian dan pagination | Implemented |
+| HR | Enrollment dengan consent, re-enrollment, penghapusan embedding dan audit enrollment | Implemented |
+| HR | Dashboard ringkasan/tren/divisi, filter absensi, ekspor CSV | Implemented |
+| HR | Approve/reject koreksi dan izin, bukti privat, pencatatan keputusan di database | Implemented |
+| Karyawan | Riwayat absensi sendiri, pengajuan koreksi berkamera/lokasi dan izin/sakit/cuti | Implemented |
+| AI | Deteksi, alignment, embedding 512 dimensi, cosine matching, threshold dan margin kandidat | Implemented |
+| Kiosk | Aktivasi perangkat oleh HR, kamera, pemicu scan otomatis, jeda/lanjut, pesan hasil | Implemented |
+| Absensi otomatis | Check-in/out menurut waktu server, cegah duplikasi dan konflik izin | Implemented |
+| Evaluasi AI | Skrip evaluasi tersedia; kalibrasi threshold dan benchmark peserta belum dipublikasikan | In Development |
+| Liveness / anti-spoofing | Deteksi serangan foto/video | Planned |
+| Operasional lanjutan | Multi-shift per karyawan, kalender libur/saldo cuti, deployment produksi | Planned |
+
+Keputusan approval bersifat final pada alur saat ini. Log keputusan tetap disimpan, walaupun section riwayat keputusan telah dihapus dari halaman detail. Koreksi menggunakan waktu server **saat diajukan**, bukan input tanggal/jam manual atau waktu HR menyetujui.
+
+## Arsitektur sistem
+
+```mermaid
+flowchart LR
+    U[Admin / HR / Karyawan] -->|Session dan CSRF| L[Laravel: auth, policy, workflow HR]
+    K[Browser kiosk yang diaktivasi] -->|Frame kamera ke Laravel| L
+    K --> P[MediaPipe: deteksi kehadiran wajah lokal]
+    L -->|HTTP internal + X-API-Key: byte gambar| A[FastAPI: deteksi, alignment, embedding]
+    A --> M[InsightFace buffalo_m / ONNX CPU]
+    A -->|Embedding ternormalisasi + metadata| L
+    L --> C[Laravel: cosine matching dan aturan absensi]
+    C --> D[(MySQL)]
+    L --> D
+    L --> F[Private storage: bukti koreksi / lampiran izin]
+```
+
+Laravel mengelola autentikasi, otorisasi, profil, transaksi database, dashboard, dan approval. FastAPI memproses gambar serta menghasilkan embedding; **identifikasi karyawan dilakukan di Laravel**, bukan di browser atau FastAPI. MySQL menyimpan akun, profil, kehadiran, permohonan, log keputusan, perangkat kiosk, serta embedding terenkripsi.
+
+MediaPipe di browser hanya membantu menentukan kapan wajah stabil untuk dikirim. Komponen ini tidak mengenali identitas dan tidak melakukan liveness. Aset model dan WASM browser dilayani dari origin aplikasi.
+
+## Implementasi AI
+
+Aplikasi memakai model **pre-trained InsightFace `buffalo_m`**, tanpa training dari nol atau fine-tuning. Hanya model deteksi `det_2.5g.onnx` dan pengenal `w600k_r50.onnx` yang dimuat melalui `CPUExecutionProvider`.
+
+1. Kamera mengirim frame sementara; backend memeriksa format dan ukuran.
+2. Python mensyaratkan tepat satu wajah, lalu memeriksa ukuran, landmark, blur, dan pencahayaan.
+3. Alignment lima landmark menghasilkan embedding 512 dimensi yang dinormalisasi L2.
+4. Laravel membandingkan probe dengan embedding enrollment yang memiliki identitas model sama. Skor karyawan adalah skor tertinggi dari sampelnya.
+5. Kandidat diterima jika melewati `FACE_SIMILARITY_THRESHOLD` dan selisih terhadap kandidat kedua memenuhi `FACE_IDENTIFICATION_MARGIN`. Kegagalan kondisi ini ditolak sebagai wajah yang belum dikenali dengan cukup yakin.
+6. Aturan absensi memeriksa jadwal, status karyawan, izin, sesi, dan duplikasi sebelum transaksi disimpan.
+
+Pendekatan embedding memungkinkan penambahan karyawan melalui enrollment tanpa melatih ulang model. Enrollment menerima 3–5 sampel, memeriksa konsistensi antarsampel, dan mengurangi sampel yang hampir identik. Frame enrollment/recognition tidak disimpan; foto bukti **koreksi** adalah alur berbeda dan disimpan privat.
+
+Threshold pada [`.env.example`](.env.example) sengaja kosong: absensi ditolak sampai nilainya valid. Tidak ada nilai optimal yang diklaim; threshold dan margin perlu dikalibrasi memakai peserta terdaftar serta tidak terdaftar. [Pipeline dan evaluasi](docs/recognition-pipeline.md) menjelaskan kontrak API dan metodologinya.
+
+## Technology stack
+
+| Layer | Teknologi yang digunakan |
+| --- | --- |
+| Web backend | PHP `^8.3`, Laravel `^13.0`, Eloquent |
+| Frontend | Blade, Tailwind CSS 4, JavaScript ES modules, Vite 6 |
+| Pemicu kamera kiosk | `@mediapipe/tasks-vision` 1.2.3, BlazeFace lokal |
+| AI service | Python 3.10 yang diuji, FastAPI, Uvicorn, Pydantic Settings |
+| Face recognition | InsightFace 2.1, model pack `buffalo_m` |
+| Computer Vision | OpenCV, NumPy, Pillow, ONNX Runtime CPU |
+| Database | MySQL untuk aplikasi; SQLite in-memory untuk tes Laravel |
+| Integrasi | HTTP REST internal dengan `X-API-Key` |
+| Pengujian | PHPUnit, Node test runner, pytest |
+
+Versi dependensi yang dipatok tersedia di [composer.lock](composer.lock), [package-lock.json](package-lock.json), dan [requirements-lock.txt](ai-service/requirements-lock.txt).
+
+## Instalasi dan konfigurasi lokal
+
+Panduan lengkap Windows PowerShell tersedia di **[Installation & Local Development](docs/local-development.md)**, termasuk prasyarat PHP/Python, MySQL, akun awal, konfigurasi email, model, API key, health check, dan troubleshooting.
 
 ```powershell
+git clone https://github.com/tsaalytics/face-recognition-project.git
+Set-Location face-recognition-project
 composer install
+npm.cmd ci
 Copy-Item .env.example .env
 php artisan key:generate
-npm.cmd ci
 ```
 
-Atur .env: DB_CONNECTION=mysql, DB_HOST, DB_PORT, DB_DATABASE=facetrack_ai,
-DB_USERNAME dan DB_PASSWORD sesuai environment; APP_URL=http://127.0.0.1:8000.
-Lalu:
+Atur database khusus pengembangan di `.env`, kemudian jalankan `php artisan migrate`. Jangan menjalankan `migrate:fresh` pada database existing. Demo seeder hanya untuk database demo lokal; panduan menjelaskan data dan akun yang dibuatnya.
 
-```powershell
-php artisan migrate
-npm.cmd run build
-php artisan serve
-```
+Jalankan Laravel di `http://127.0.0.1:8000` dan FastAPI di `http://127.0.0.1:8001` melalui terminal terpisah. Port dapat diganti jika terpakai, dengan memperbarui `APP_URL` atau `AI_SERVICE_URL`. FastAPI tidak otomatis ikut hidup saat `php artisan serve` atau `composer run dev` dijalankan.
 
-Untuk database demo kosong dengan APP_ENV=local saja: php artisan db:seed.
-Akun contoh admin@facetrack.test / hr@facetrack.test / employee@facetrack.test,
-password DemoFaceTrack!2026. Seeder tidak boleh dipakai untuk provisioning produksi.
-Admin pertama di database non-demo: php artisan admin:bootstrap admin@example.com
-(--name opsional); password diminta secara tersembunyi. Tidak ada registrasi publik.
+| Variabel | Tujuan |
+| --- | --- |
+| `APP_URL`, `APP_KEY` | URL aktivasi akun dan kunci enkripsi Laravel; buat key dengan Artisan |
+| `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Database aplikasi |
+| `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | Pengiriman undangan; `log` untuk development |
+| `AI_SERVICE_URL`, `AI_SERVICE_API_KEY`, `AI_REQUEST_TIMEOUT` | Endpoint Python, shared secret server, dan timeout |
+| `FACE_MODEL_NAME` | Model yang didukung: `buffalo_m` |
+| `FACE_SIMILARITY_THRESHOLD`, `FACE_IDENTIFICATION_MARGIN` | Batas penerimaan dan pemisahan kandidat |
+| `FACE_ENROLLMENT_CONSISTENCY_THRESHOLD`, `FACE_ENROLLMENT_DUPLICATE_THRESHOLD` | Heuristik konsistensi/deduplikasi enrollment |
 
-## Upgrade database existing tanpa kehilangan data
-Backup database dahulu. Jalankan **php artisan migrate**, bukan migrate:fresh/reset.
-Migrasi 000003 menambah kolom dan memperluas tipe source; tidak mengganti primary
-key/NIK, menghapus record atau mengubah password pengguna lama.
-Migrasi lokal pada sesi refinement sudah dijalankan; tidak perlu seed ulang.
+Konfigurasi Python berada di [`ai-service/.env.example`](ai-service/.env.example). Jangan menaruh secret di `VITE_*`, README, screenshot, atau repository.
 
-- employees.employee_number tetap **NIK** legacy yang unik.
-- employees.business_id: string 12 digit unik, empat angka random_int(0,9999)
-  dengan leading zero + tanggal lahir YYYYMMDD; backend-generated dan read-only.
-- date_of_birth dan home_address ditambahkan nullable demi kompatibilitas data lama.
-  Form HR baru/edit mewajibkan nama, NIK, tanggal lahir, alamat, divisi, email,
-  telepon string dan jabatan; ID yang sudah terbit tetap meski tanggal lahir berubah.
-- Profil lama tanpa tanggal lahir tetap tanpa ID, tidak diisi tanggal lahir palsu.
-  Lengkapi data melalui HR. Save profil akan menerbitkan ID yang masih kosong.
-- Backfill hanya menerbitkan ID pada profil yang memiliki tanggal lahir:
+## Alur aplikasi
 
-```powershell
-php artisan employees:backfill-ids --dry-run
-php artisan employees:backfill-ids
-```
+**Aktivasi akun:** HR melengkapi profil aktif → Admin membuat akun HR/Employee dan mengirim undangan → penerima menetapkan password sendiri → akun aktif. Tidak ada registrasi publik. Token undangan berlaku 60 menit dan sekali pakai.
 
-Perintah dapat diulang tanpa mengganti ID. PK internal dan foreign key tetap sama.
-Pada audit lokal: enam profil belum memiliki tanggal lahir, sehingga dry-run eligible=0.
+**Enrollment:** HR memilih karyawan dan mencatat persetujuan → kamera mengambil 3–5 sampel → FastAPI menghasilkan embedding → Laravel memeriksa konsistensi dan menyimpan embedding terenkripsi → status enrollment dan audit diperbarui.
 
-## Hak akses
-- Admin: dashboard, invitation/role/status akun, monitoring absensi. Direktori dan detail karyawan hanya untuk HR.
-  absensi read-only dengan filter/pagination. Akun Admin tidak dapat diedit
-  melalui form biasa; Admin tidak mengatur password pengguna.
-- HR: dashboard/tren/divisi/pending, tambah/edit profil, monitoring dan CSV,
-  enrollment wajah berbasis consent, detail bukti privat, approve/reject koreksi/izin.
-- Employee: riwayat milik sendiri, pengajuan koreksi/izin, status dan bukti sendiri.
-  Data/berkas orang lain tidak dapat diakses.
-- Pengubahan email profil tertaut oleh HR menyinkronkan email login dan mencabut
-  token/sesi lama. Undangan pending ke email lama harus dikirim ulang.
-- Linking legacy tetap tersedia bagi HR dengan email akun yang sesuai; akun
-  baru dibuat oleh Admin melalui invitation. Profil lama yang email/relasinya
-  tidak konsisten memerlukan peninjauan, tidak ditautkan otomatis.
+**Absensi:** HR menerbitkan kode perangkat → browser diaktivasi melalui `/kiosk/activate` → kamera mendeteksi wajah stabil → Laravel meminta embedding dan melakukan matching → aturan server menentukan check-in/out → catatan disimpan atau alasan kegagalan ditampilkan.
 
-## Invitation dan aktivasi
-1. HR melengkapi profil aktif sampai ID Karyawan diterbitkan.
-2. Admin -> Akun pengguna -> Tambah akun: cari ID/nama, pilih karyawan,
-   email otomatis read-only, pilih HR/Employee, Send Invitation.
-3. Backend membaca ulang profil, memastikan aktif/tidak tertaut/email tersedia.
-   Akun dibuat Pending Activation, tidak dapat login.
-4. Penerima membuka Set Your Password, menentukan password sendiri.
-   Minimal 12 karakter, huruf besar/kecil, angka dan simbol.
-5. Token Password Broker tersimpan sebagai hash, berlaku 60 menit, sekali pakai.
-   Aktivasi atomik mengonsumsi token, menyimpan hash password, mengaktifkan akun.
-6. Admin dapat resend untuk Pending Activation setelah 60 detik; token lama gugur.
-   Resend juga dibatasi 5 request/menit; form aktivasi dibatasi 10/menit.
-7. Status akun: pending_activation / active / disabled, disinkronkan dengan
-   is_active untuk kompatibilitas. Admin tidak bisa melewati proses set-password
-   dengan mengubah akun pending langsung menjadi active.
-8. Jika transport email gagal, akun tetap pending, UI menunjukkan kegagalan dan
-   Admin dapat resend setelah cooldown. invitation_sent_at menunjukkan transport
-   menerima pengiriman, bukan bukti email sampai di inbox.
+Jadwal saat ini satu sesi `regular` dalam `Asia/Jakarta`: sebelum 05.00 check-out hari sebelumnya, 05.00–sebelum 06.00 tutup, 06.00–sebelum 17.00 check-in, mulai 17.00 check-out hari ini. Batas tepat waktu adalah 08.00 dengan grace period 0 menit. Nilainya diatur di [config/attendance.php](config/attendance.php), bukan jam perangkat pengguna. Check-out memerlukan check-in sebelumnya.
 
-## Menguji email lokal (Mail Log)
-Environment lokal saat diperiksa memakai MAIL_MAILER=log.
-Pastikan .env:
+## Testing dan evaluasi AI
 
-```dotenv
-MAIL_MAILER=log
-APP_URL=http://127.0.0.1:8000
-```
-
-Jalankan php artisan config:clear, buat invitation dari Admin, lalu buka
-storage/logs/laravel.log dan cari email terbaru berjudul FaceTrack AI - Set Your Password.
-Tautan ada di isi email log. Buka dalam private/incognito window atau logout dari
-Admin terlebih dahulu, karena halaman aktivasi ditujukan ke guest.
-Setelah mengaktifkan akun, coba login dan gunakan kembali link: harus ditolak.
-Mail log tidak mengirim ke inbox sungguhan. Token di log bersifat rahasia;
-.env, *.log dan .local-backups diabaikan Git. SMTP riil belum diuji.
-
-## Koreksi absensi
-- Form hanya jenis Check In/Out, alasan, consent, kamera dan lokasi.
-  **Tidak ada input manual tanggal/jam absensi.**
-- Waktu absensi koreksi = waktu server saat pengajuan diterima.
-  attendance_date, requested_at dan submitted_at ditetapkan dari instant yang sama.
-  Input API bernama tanggal/jam/submitted_at tidak dipercaya.
-- HR menyetujui memakai submitted_at, bukan waktu approval. reviewed_at terpisah.
-  Source: hr_approved_correction. Reject tidak mengubah attendance.
-- requested_at lama tetap disimpan untuk riwayat; pending lama yang ditinjau
-  setelah upgrade memakai submitted_at sesuai aturan baru.
-- Foto/captured_at/GPS hanya bukti pendukung, bukan verifikasi identitas.
-  Timestamp pengambilan perangkat berbeda dari timestamp absensi server.
-- Kamera canvas/getUserMedia dan Geolocation diminta setelah consent dan aksi.
-  Jika ditolak, tidak ada data palsu; hubungi HR untuk alternatif.
-- Gunakan localhost/127.0.0.1 atau HTTPS valid. HTTP LAN biasa tidak memenuhi
-  secure context untuk sensor. Foto/GPS fisik belum diverifikasi oleh tes browser.
-- Foto JPEG/PNG/WebP maksimal 5 MB dan 4096x4096; capture maksimal 15 menit lalu
-  dengan toleransi jam maju 5 menit. Berkas hanya di storage/app/private.
-- Satu koreksi pending per tanggal/sesi/jenis; lock Employee dipakai bersama
-  service submit dan approval. Tidak ada absensi otomatis atau hasil AI simulasi.
-- Check-out memerlukan check-in; sesi regular pada hari yang sama saja.
-
-## Izin dan laporan
-Izin/sakit/cuti dengan rentang tanggal, alasan, dokumen opsional PDF/JPEG/PNG/WebP
-maksimal 5 MB. Pending/approved overlap atau konflik hadir ditolak.
-Approve HR membuat leave tiap hari rentang, termasuk akhir pekan, maksimum 366 hari.
-Belum ada kalender kerja/libur, saldo cuti atau undo keputusan.
-CSV HR mencakup seluruh hasil filter dan menetralkan formula injection.
-Status belum hadir di dashboard bukan keputusan absen final.
-
-## Tes
 ```powershell
 php artisan test
 npm.cmd run test:js
+.\ai-service\.venv\Scripts\python.exe -m pytest ai-service/tests -q
 npm.cmd run build
 ```
 
-PHPUnit memakai SQLite in-memory dan Mail::fake, tidak reset database MySQL.
-Tes JavaScript memakai mock sensor/DOM, bukan perangkat fisik.
-Laporan terbaru, daftar file dan hasil migrasi: [docs/refinement.md](docs/refinement.md).
-Status UI, hasil QA dan checklist browser/perangkat: [docs/phase-5.md](docs/phase-5.md).
+Tes aplikasi memeriksa autentikasi/role, kepemilikan data, pengelolaan profil, undangan, approval, aturan absensi, serta integrasi HTTP dengan respons AI tiruan. Tes JavaScript memakai mock DOM/sensor. Tes Python default menguji kontrak API, kualitas input, dan evaluasi dengan runtime/detektor tiruan; smoke test model asli bersifat opt-in dan memakai input sintetis. Kelulusan tes tersebut **bukan angka akurasi pengenalan orang**. [Cakupan dan hasil audit](docs/documentation-audit.md) mencatat hasil pemeriksaan sesi ini.
 
-## Troubleshooting email/lokasi
-Lihat [Gmail SMTP dan lokasi perangkat](docs/email-location-troubleshooting.md).
+| Metrik model pada peserta | Hasil |
+| --- | --- |
+| Open-set recognition accuracy | Not evaluated yet |
+| False Acceptance Rate (FAR) | Not evaluated yet |
+| False Rejection Rate (FRR) | Not evaluated yet |
+| Rata-rata dan P95 inference/extraction latency | Not evaluated yet |
+| Waktu end-to-end absensi | Not evaluated yet |
 
-## Phase 6.1 — Setup AI service
-Service Python CPU terpisah dan health internal disiapkan menggunakan InsightFace
-buffalo_m. Enrollment dan recognition web masih dinonaktifkan pada tahap ini.
-Lihat [audit, instalasi dan verifikasi AI](docs/ai_architecture.md) serta
-[rencana evaluasi](docs/face_recognition_evaluation.md).
+Skrip [`evaluate_faces.py`](ai-service/scripts/evaluate_faces.py) memisahkan cohort kalibrasi dan pengujian, menolak frame duplikat, dan menghasilkan laporan agregat. Pengukuran waktunya adalah wall time ekstraksi/matching, bukan benchmark model murni atau perjalanan kamera-ke-database. Endpoint scan Laravel menyediakan `Server-Timing` pada respons sukses untuk pengukuran aplikasi tambahan. Angka **2,17 detik** dari Capstone sebelumnya bukan hasil FaceTrack AI ini.
 
-Phase 6.2 menambahkan endpoint ekstraksi embedding internal dan utility cosine matching
-Laravel. Lihat [implementasi dan pengujian Phase 6.2](docs/phase-6-2.md).
-Enrollment web tersedia sejak Phase 6.3; kiosk absensi HR tersedia pada [Phase 6.4](docs/phase-6-4.md), dengan threshold wajib dikonfigurasi.
+## Keamanan dan privasi
 
-## Phase 6.3 — HR face enrollment
-HR dapat Register Face, Re-enroll, dan Delete Enrollment melalui Karyawan -> Kelola
-enrollment. Sampel kamera sementara diteruskan ke Python; hanya embedding terenkripsi
-dan metadata disimpan. Migrasi 000004 menambah tabel embedding/audit serta versi
-enrollment tanpa mengganti data existing. Absensi wajah melalui kiosk HR dijelaskan pada [Phase 6.4](docs/phase-6-4.md).
-Lihat [cara menjalankan, privasi dan hasil tes](docs/phase-6-3.md).
+- Session authentication, pembatasan akun aktif, role middleware, policies kepemilikan, CSRF, dan rate limiting pada endpoint terkait.
+- Identitas, waktu, jadwal dan hasil keputusan ditentukan server; transaksi, row locks, serta unique constraints melindungi konsistensi absensi/approval.
+- Embedding menggunakan Eloquent `encrypted:array` dan disembunyikan dari serialisasi model. Kunci Laravel tetap diperlukan untuk dekripsi; pengelolaan kunci dan backup menjadi tanggung jawab operator.
+- Foto koreksi dan lampiran izin berada di `storage/app/private`, melalui controller dengan pemeriksaan izin; bukan URL penyimpanan publik.
+- FastAPI mensyaratkan `X-API-Key`, membatasi ukuran/rate request, dan tidak menyediakan CORS. Deployment lokal mengikat layanan ke loopback. Pipeline memproses frame/vektor inferensi di memori tanpa persistensi yang disengaja.
+- Kode pairing dan token perangkat disimpan sebagai hash; aktivasi mengakhiri login dashboard pada browser tersebut. Akses perangkat dapat dicabut HR.
+- Database menyimpan audit enrollment dan keputusan approval serta sumber catatan absensi; ini bukan audit log menyeluruh untuk setiap request.
+
+Embedding tetap merupakan **data biometrik sensitif** meskipun terenkripsi. Gunakan persetujuan peserta, jangan unggah foto/embedding ke repository, dan tentukan retensi sebelum uji dengan data nyata. Kiosk standalone belum memiliki consent individual per scan. Pengenalan wajah belum membuktikan liveness; prototipe ini tidak layak langsung dijadikan dasar keputusan kehadiran atau payroll tanpa evaluasi lebih lanjut.
+
+## Keterbatasan dan pengembangan berikutnya
+
+| Kondisi saat ini | Pengembangan berikutnya — Planned |
+| --- | --- |
+| Threshold, margin, serta heuristik kualitas belum dikalibrasi terhadap cohort peserta | Kalibrasi dan benchmark dengan holdout, known/unknown, serta kondisi cahaya berbeda |
+| Belum ada liveness/anti-spoofing | Evaluasi serangan foto/video dan integrasi liveness |
+| Matching melakukan pencarian linear terhadap embedding yang relevan | Benchmark skala gallery dan optimasi bila terukur diperlukan |
+| Satu sesi regular; belum ada roster multi-shift atau kalender libur | Jadwal per karyawan, kebijakan hari kerja dan saldo cuti |
+| Kamera, browser, dan jaringan fisik belum tervalidasi secara menyeluruh | Pengujian perangkat kiosk dan pemulihan gangguan berulang |
+| Belum ada bukti deployment produksi, audit keamanan, atau kebijakan retensi otomatis | Hardening, supervisi proses, TLS, backup dan uji pemulihan |
+
+## Dokumentasi lanjutan
+
+- [Instalasi, konfigurasi, dan troubleshooting](docs/local-development.md)
+- [Pipeline AI, kontrak API, dan rencana evaluasi](docs/recognition-pipeline.md)
+- [Audit bukti implementasi dan informasi yang belum terverifikasi](docs/documentation-audit.md)
+- [Checklist screenshot portofolio](docs/screenshots/README.md)
+- [Pairing kiosk standalone](docs/standalone-kiosk.md)
+- [Troubleshooting email dan lokasi](docs/email-location-troubleshooting.md)
+
+Dokumen `phase-*`, `verification.md`, `architecture.md`, dan `ai_architecture.md` mencatat tahap pengembangan sebelumnya; klaim status di dalamnya perlu dibaca dalam konteks tanggalnya. README dan panduan baru di atas merefleksikan audit 18 November 2026.
+
+## Atribusi dan lisensi
+
+FaceTrack AI adalah proyek portofolio personal. Inferensi dibangun di atas InsightFace, ONNX Runtime, OpenCV dan NumPy; antarmuka menggunakan Laravel, Tailwind CSS, serta MediaPipe. Library dan model tersebut bukan karya yang diklaim dibuat dari nol oleh pemilik proyek.
+
+`composer.json` masih mencantumkan metadata `MIT`, tetapi belum ditemukan file `LICENSE` di root repository. **Lisensi source code aplikasi perlu dikonfirmasi oleh pemilik**; rekomendasinya adalah meninjau hak atas kode/aset dan menambahkan lisensi eksplisit, misalnya MIT jika sesuai. README ini tidak menetapkan lisensi baru.
+
+Lisensi kode InsightFace adalah MIT, sedangkan model pre-trained yang disediakannya, termasuk `buffalo_m`, dibatasi untuk **penelitian nonkomersial** menurut [kebijakan resmi InsightFace](https://github.com/deepinsight/insightface#license). Lisensi library tidak otomatis memberi hak komersial atas bobot model; periksa ketentuan model atau izin terpisah sebelum penggunaan komersial. Daftar komponen detector browser tersedia di [README aset kiosk](public/vendor/kiosk-face-detector/README.md).
