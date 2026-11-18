@@ -138,39 +138,6 @@ Konfigurasi Python berada di [`ai-service/.env.example`](ai-service/.env.example
 
 Jadwal saat ini satu sesi `regular` dalam `Asia/Jakarta`: sebelum 05.00 check-out hari sebelumnya, 05.00–sebelum 06.00 tutup, 06.00–sebelum 17.00 check-in, mulai 17.00 check-out hari ini. Batas tepat waktu adalah 08.00 dengan grace period 0 menit. Nilainya diatur di [config/attendance.php](config/attendance.php), bukan jam perangkat pengguna. Check-out memerlukan check-in sebelumnya.
 
-## Testing dan evaluasi AI
-
-```powershell
-php artisan test
-npm.cmd run test:js
-.\ai-service\.venv\Scripts\python.exe -m pytest ai-service/tests -q
-npm.cmd run build
-```
-
-Tes aplikasi memeriksa autentikasi/role, kepemilikan data, pengelolaan profil, undangan, approval, aturan absensi, serta integrasi HTTP dengan respons AI tiruan. Tes JavaScript memakai mock DOM/sensor. Tes Python default menguji kontrak API, kualitas input, dan evaluasi dengan runtime/detektor tiruan; smoke test model asli bersifat opt-in dan memakai input sintetis. Kelulusan tes tersebut **bukan angka akurasi pengenalan orang**. [Cakupan dan hasil audit](docs/documentation-audit.md) mencatat hasil pemeriksaan sesi ini.
-
-| Metrik model pada peserta | Hasil |
-| --- | --- |
-| Open-set recognition accuracy | Not evaluated yet |
-| False Acceptance Rate (FAR) | Not evaluated yet |
-| False Rejection Rate (FRR) | Not evaluated yet |
-| Rata-rata dan P95 inference/extraction latency | Not evaluated yet |
-| Waktu end-to-end absensi | Not evaluated yet |
-
-Skrip [`evaluate_faces.py`](ai-service/scripts/evaluate_faces.py) memisahkan cohort kalibrasi dan pengujian, menolak frame duplikat, dan menghasilkan laporan agregat. Pengukuran waktunya adalah wall time ekstraksi/matching, bukan benchmark model murni atau perjalanan kamera-ke-database. Endpoint scan Laravel menyediakan `Server-Timing` pada respons sukses untuk pengukuran aplikasi tambahan. Angka **2,17 detik** dari Capstone sebelumnya bukan hasil FaceTrack AI ini.
-
-## Keamanan dan privasi
-
-- Session authentication, pembatasan akun aktif, role middleware, policies kepemilikan, CSRF, dan rate limiting pada endpoint terkait.
-- Identitas, waktu, jadwal dan hasil keputusan ditentukan server; transaksi, row locks, serta unique constraints melindungi konsistensi absensi/approval.
-- Embedding menggunakan Eloquent `encrypted:array` dan disembunyikan dari serialisasi model. Kunci Laravel tetap diperlukan untuk dekripsi; pengelolaan kunci dan backup menjadi tanggung jawab operator.
-- Foto koreksi dan lampiran izin berada di `storage/app/private`, melalui controller dengan pemeriksaan izin; bukan URL penyimpanan publik.
-- FastAPI mensyaratkan `X-API-Key`, membatasi ukuran/rate request, dan tidak menyediakan CORS. Deployment lokal mengikat layanan ke loopback. Pipeline memproses frame/vektor inferensi di memori tanpa persistensi yang disengaja.
-- Kode pairing dan token perangkat disimpan sebagai hash; aktivasi mengakhiri login dashboard pada browser tersebut. Akses perangkat dapat dicabut HR.
-- Database menyimpan audit enrollment dan keputusan approval serta sumber catatan absensi; ini bukan audit log menyeluruh untuk setiap request.
-
-Embedding tetap merupakan **data biometrik sensitif** meskipun terenkripsi. Gunakan persetujuan peserta, jangan unggah foto/embedding ke repository, dan tentukan retensi sebelum uji dengan data nyata. Kiosk standalone belum memiliki consent individual per scan. Pengenalan wajah belum membuktikan liveness; prototipe ini tidak layak langsung dijadikan dasar keputusan kehadiran atau payroll tanpa evaluasi lebih lanjut.
-
 ## Keterbatasan dan pengembangan berikutnya
 
 | Kondisi saat ini | Pengembangan berikutnya — Planned |
@@ -181,22 +148,3 @@ Embedding tetap merupakan **data biometrik sensitif** meskipun terenkripsi. Guna
 | Satu sesi regular; belum ada roster multi-shift atau kalender libur | Jadwal per karyawan, kebijakan hari kerja dan saldo cuti |
 | Kamera, browser, dan jaringan fisik belum tervalidasi secara menyeluruh | Pengujian perangkat kiosk dan pemulihan gangguan berulang |
 | Belum ada bukti deployment produksi, audit keamanan, atau kebijakan retensi otomatis | Hardening, supervisi proses, TLS, backup dan uji pemulihan |
-
-## Dokumentasi lanjutan
-
-- [Instalasi, konfigurasi, dan troubleshooting](docs/local-development.md)
-- [Pipeline AI, kontrak API, dan rencana evaluasi](docs/recognition-pipeline.md)
-- [Audit bukti implementasi dan informasi yang belum terverifikasi](docs/documentation-audit.md)
-- [Checklist screenshot portofolio](docs/screenshots/README.md)
-- [Pairing kiosk standalone](docs/standalone-kiosk.md)
-- [Troubleshooting email dan lokasi](docs/email-location-troubleshooting.md)
-
-Dokumen `phase-*`, `verification.md`, `architecture.md`, dan `ai_architecture.md` mencatat tahap pengembangan sebelumnya; klaim status di dalamnya perlu dibaca dalam konteks tanggalnya. README dan panduan baru di atas merefleksikan audit 18 November 2026.
-
-## Atribusi dan lisensi
-
-FaceTrack AI adalah proyek portofolio personal. Inferensi dibangun di atas InsightFace, ONNX Runtime, OpenCV dan NumPy; antarmuka menggunakan Laravel, Tailwind CSS, serta MediaPipe. Library dan model tersebut bukan karya yang diklaim dibuat dari nol oleh pemilik proyek.
-
-`composer.json` masih mencantumkan metadata `MIT`, tetapi belum ditemukan file `LICENSE` di root repository. **Lisensi source code aplikasi perlu dikonfirmasi oleh pemilik**; rekomendasinya adalah meninjau hak atas kode/aset dan menambahkan lisensi eksplisit, misalnya MIT jika sesuai. README ini tidak menetapkan lisensi baru.
-
-Lisensi kode InsightFace adalah MIT, sedangkan model pre-trained yang disediakannya, termasuk `buffalo_m`, dibatasi untuk **penelitian nonkomersial** menurut [kebijakan resmi InsightFace](https://github.com/deepinsight/insightface#license). Lisensi library tidak otomatis memberi hak komersial atas bobot model; periksa ketentuan model atau izin terpisah sebelum penggunaan komersial. Daftar komponen detector browser tersedia di [README aset kiosk](public/vendor/kiosk-face-detector/README.md).
