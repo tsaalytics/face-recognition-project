@@ -22,10 +22,6 @@ Pencatatan absensi manual dapat menambah pekerjaan administratif, memecah data k
 
 Ide proyek berangkat dari pengalaman studi kasus absensi perusahaan pada Capstone sebelumnya. Repositori ini adalah pengembangan personal; **bukan klaim bahwa versi FaceTrack AI ini digunakan atau telah di-deploy oleh perusahaan tersebut**. Dampak terhadap beban kerja HR belum diukur.
 
-## Demo dan screenshot
-
-Belum ada screenshot aplikasi terkurasi di `docs/screenshots/` dan belum ada tautan demo publik yang terverifikasi. Logo di atas adalah aset branding, bukan bukti demo. [Daftar pengambilan screenshot](docs/screenshots/README.md) mencakup dashboard, direktori/detail karyawan, enrollment, kiosk, riwayat absensi, dan approval koreksi. Gunakan data sintetis dan peserta yang memberikan izin sebelum menerbitkan visual.
-
 ## Fitur dan status
 
 **Implemented** berarti tersedia dalam kode dan cakupan pengujian terkait; bukan jaminan kualitas pengenalan di perangkat atau kondisi lapangan. **In Development** berarti fondasinya tersedia tetapi validasi belum selesai. **Planned** berarti belum menjadi kemampuan aktif aplikasi.
