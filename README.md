@@ -122,6 +122,18 @@ Jalankan Laravel di `http://127.0.0.1:8000` dan FastAPI di `http://127.0.0.1:800
 
 Konfigurasi Python berada di [`ai-service/.env.example`](ai-service/.env.example). Jangan menaruh secret di `VITE_*`, README, screenshot, atau repository.
 
+### Akun demo lokal
+
+Akun berikut dibuat oleh `DatabaseSeeder` untuk environment `local` atau `testing`:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@facetrack.test` | `DemoFaceTrack!2026` |
+| HR | `hr@facetrack.test` | `DemoFaceTrack!2026` |
+| Employee | `employee@facetrack.test` | `DemoFaceTrack!2026` |
+
+Kredensial ini khusus demo lokal. Seeder hanya menetapkan password saat membuat akun baru; password akun yang sudah ada tidak diubah. Jika password telah diganti, gunakan password terbaru.
+
 ## Alur aplikasi
 
 **Aktivasi akun:** HR melengkapi profil aktif → Admin membuat akun HR/Employee dan mengirim undangan → penerima menetapkan password sendiri → akun aktif. Tidak ada registrasi publik. Token undangan berlaku 60 menit dan sekali pakai.
