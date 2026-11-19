@@ -6,7 +6,7 @@
 
 *AI-Powered Employee Attendance Management System*
 
-FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan proses administrasi HR. Laravel menangani akun, kebijakan akses, dan aturan absensi; layanan Python menjalankan inferensi model wajah. Proyek portofolio personal ini merupakan **prototipe**: fitur aplikasi telah diimplementasikan, tetapi akurasi pengenalan dan kesiapan produksi belum dievaluasi secara menyeluruh.
+FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan proses administrasi HR. Laravel menangani akun, kebijakan akses, dan aturan absensi; layanan Python menjalankan inferensi model wajah.
 
 ![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![Python 3.10](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
@@ -14,7 +14,6 @@ FaceTrack AI menghubungkan pengenalan wajah dengan pencatatan kehadiran dan pros
 ![InsightFace](https://img.shields.io/badge/InsightFace-buffalo__m-4B075D)
 ![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white)
 
-[Instalasi](docs/local-development.md) · [Pipeline AI](docs/recognition-pipeline.md) · [Pengujian dan audit](docs/documentation-audit.md) · [Screenshot](docs/screenshots/README.md)
 
 ## Gambaran proyek
 
@@ -143,18 +142,6 @@ Kredensial ini khusus demo lokal. Seeder hanya menetapkan password saat membuat 
 **Absensi:** HR menerbitkan kode perangkat → browser diaktivasi melalui `/kiosk/activate` → kamera mendeteksi wajah stabil → Laravel meminta embedding dan melakukan matching → aturan server menentukan check-in/out → catatan disimpan atau alasan kegagalan ditampilkan.
 
 Jadwal saat ini satu sesi `regular` dalam `Asia/Jakarta`: sebelum 05.00 check-out hari sebelumnya, 05.00–sebelum 06.00 tutup, 06.00–sebelum 17.00 check-in, mulai 17.00 check-out hari ini. Batas tepat waktu adalah 08.00 dengan grace period 0 menit. Nilainya diatur di [config/attendance.php](config/attendance.php), bukan jam perangkat pengguna. Check-out memerlukan check-in sebelumnya.
-
-## Keamanan dan privasi
-
-- Session authentication, pembatasan akun aktif, role middleware, policies kepemilikan, CSRF, dan rate limiting pada endpoint terkait.
-- Identitas, waktu, jadwal dan hasil keputusan ditentukan server; transaksi, row locks, serta unique constraints melindungi konsistensi absensi/approval.
-- Embedding menggunakan Eloquent `encrypted:array` dan disembunyikan dari serialisasi model. Kunci Laravel tetap diperlukan untuk dekripsi; pengelolaan kunci dan backup menjadi tanggung jawab operator.
-- Foto koreksi dan lampiran izin berada di `storage/app/private`, melalui controller dengan pemeriksaan izin; bukan URL penyimpanan publik.
-- FastAPI mensyaratkan `X-API-Key`, membatasi ukuran/rate request, dan tidak menyediakan CORS. Deployment lokal mengikat layanan ke loopback. Pipeline memproses frame/vektor inferensi di memori tanpa persistensi yang disengaja.
-- Kode pairing dan token perangkat disimpan sebagai hash; aktivasi mengakhiri login dashboard pada browser tersebut. Akses perangkat dapat dicabut HR.
-- Database menyimpan audit enrollment dan keputusan approval serta sumber catatan absensi; ini bukan audit log menyeluruh untuk setiap request.
-
-Embedding tetap merupakan **data biometrik sensitif** meskipun terenkripsi. Gunakan persetujuan peserta, jangan unggah foto/embedding ke repository, dan tentukan retensi sebelum uji dengan data nyata. Kiosk standalone belum memiliki consent individual per scan. Pengenalan wajah belum membuktikan liveness; prototipe ini tidak layak langsung dijadikan dasar keputusan kehadiran atau payroll tanpa evaluasi lebih lanjut.
 
 ## Keterbatasan dan pengembangan berikutnya
 
